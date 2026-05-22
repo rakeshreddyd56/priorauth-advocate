@@ -1,0 +1,14 @@
+{
+  "name": "priorauth-antigravity-hello-world",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pre-event smoke test for Gemini Managed Agents / Antigravity.",
+  "scripts": {
+    "smoke": "node src/run.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.33.0",
+    "dotenv": "^16.4.7"
+  }
+}
