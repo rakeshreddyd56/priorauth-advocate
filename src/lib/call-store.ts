@@ -35,6 +35,24 @@ export function recallCallResult(key: string): CallResult | null {
   return stored?.result ?? null;
 }
 
+// ── Call context store — keyed by conversation_id ──
+// The original DenialLetter + AppealLetter context, stored at call-start time
+// so the post-call webhook can enrich the CallResult before forwarding to n8n.
+declare global {
+  // eslint-disable-next-line no-var
+  var __contextStore: Map<string, any> | undefined;
+}
+const contextStore = globalThis.__contextStore ?? (globalThis.__contextStore = new Map());
+
+export function rememberCallContext(key: string, ctx: any) {
+  contextStore.set(key, { ctx, receivedAt: Date.now() });
+}
+
+export function recallCallContext(key: string): any | null {
+  const stored = contextStore.get(key);
+  return stored?.ctx ?? null;
+}
+
 export function callStoreSize(): number {
   return store.size;
 }

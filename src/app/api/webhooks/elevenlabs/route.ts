@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CallResultSchema } from '@/lib/schemas';
 import { MOCK_CALL_RESULT } from '@/lib/fallback-data';
 import { getGeminiClient, GEMINI_MODEL } from '@/lib/gemini';
-import { rememberCallResult } from '@/lib/call-store';
+import { rememberCallResult, recallCallContext } from '@/lib/call-store';
 import crypto from 'crypto';
 
 // ---------------------------------------------------------------------------
@@ -225,10 +225,24 @@ export async function POST(request: NextRequest) {
 
     if (n8nUrl) {
       try {
+        // Enrich the CallResult with the original DenialLetter context so
+        // n8n's Build TrackingPlan can emit a real summary, not defaults.
+        const ctx = recallCallContext(conversationId || callSid);
+        const denial = ctx?.denialLetter || {};
+        const enriched = {
+          ...validatedCallResult,
+          patient_initials: denial.patient_name_redacted ?? null,
+          member_id_last4: (denial.member_id ?? '').slice(-4) || null,
+          service_or_drug: denial.service_or_drug ?? null,
+          insurer: denial.insurer ?? null,
+          policy_id: denial.cited_policy_section ?? null,
+          appeal_deadline_iso: denial.appeal_deadline_iso ?? null,
+          patient_email: 'rakeshreddyd56@gmail.com', // demo recipient
+        };
         const res = await fetch(n8nUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(validatedCallResult),
+          body: JSON.stringify(enriched),
         });
         n8nSuccess = res.ok;
         n8nResponse = await res.json().catch(() => null);

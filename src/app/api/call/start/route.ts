@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MOCK_CALL_RESULT } from '@/lib/fallback-data';
 import { verifyEnv } from '@/lib/env';
-import { rememberCallResult } from '@/lib/call-store';
+import { rememberCallResult, rememberCallContext } from '@/lib/call-store';
 import { CallResultSchema } from '@/lib/schemas';
 
 // Canonical simulated call result for the stage-fallback path.
@@ -130,10 +130,17 @@ export async function POST(request: NextRequest) {
         }
 
         const data = await res.json();
+        const callSidOut = data.call_sid ?? data.phone_call_id ?? `CA-${Date.now()}`;
+        const convIdOut = data.conversation_id ?? data.agent_id ?? agentId;
+
+        // Persist DenialLetter context so the post-call webhook can enrich
+        // the CallResult forwarded to n8n with patient/policy/drug details.
+        rememberCallContext(convIdOut, { denialLetter, voiceScript });
+        if (callSidOut) rememberCallContext(callSidOut, { denialLetter, voiceScript });
 
         return NextResponse.json({
-          call_sid: data.call_sid ?? data.phone_call_id ?? `CA-${Date.now()}`,
-          conversation_id: data.conversation_id ?? data.agent_id ?? agentId,
+          call_sid: callSidOut,
+          conversation_id: convIdOut,
           status: data.status ?? 'initiated',
           message: 'ElevenLabs outbound call initiated successfully.',
           live: true,
