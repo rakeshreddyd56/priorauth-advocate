@@ -42,9 +42,12 @@ async function fetchFromCloudHealthcare(memberIdLast4: string): Promise<{ patien
   const location = process.env.VERTEX_LOCATION || 'us-central1';
   const dataset = process.env.HEALTHCARE_DATASET;
   const fhirStore = process.env.HEALTHCARE_FHIR_STORE;
-  const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-  if (!project || !dataset || !fhirStore || !credsPath) return null;
+  // No GOOGLE_APPLICATION_CREDENTIALS check — google-auth-library auto-discovers
+  // Application Default Credentials (ADC) from ~/.config/gcloud/... on dev,
+  // or the metadata server on Cloud Run. This is the 2026 best-practice path
+  // that complies with the iam.disableServiceAccountKeyCreation org policy.
+  if (!project || !dataset || !fhirStore) return null;
 
   // Live path — fetch Patient by identifier, then DocumentReference by subject.
   try {

@@ -41,7 +41,10 @@ async function getAuthToken(): Promise<string> {
     return tokenResponse.token;
   } catch (err: any) {
     console.error('❌ Failed to acquire access token:', err.message);
-    console.error('Ensure GOOGLE_APPLICATION_CREDENTIALS points at a valid service-account key.');
+    console.error('Make sure you have run BOTH:');
+    console.error('   gcloud auth login');
+    console.error('   gcloud auth application-default login');
+    console.error('OR set GOOGLE_APPLICATION_CREDENTIALS to a service-account JSON key file.');
     process.exit(1);
   }
 }

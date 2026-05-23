@@ -65,15 +65,43 @@ export interface PolicyRanking {
 
 export async function rankPoliciesAgainst(query: string): Promise<PolicyRanking[]> {
   const docs = await loadCorpus();
-  const terms = query
-    .toLowerCase()
+  const lowerQuery = query.toLowerCase();
+  const terms = lowerQuery
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
     .filter(t => t.length > 2);
 
+  // Extract any 3-4 digit policy IDs from the query (e.g. "0341" from
+  // "Aetna Medical Policy 0341"). A direct policy-ID match should
+  // dominate naive term-frequency.
+  const queryPolicyIds = (lowerQuery.match(/\b\d{3,4}\b/g) || []);
+
   return docs.map((doc) => {
     const text = doc.full_text.toLowerCase();
-    const docScore = terms.reduce((acc, term) => acc + (text.split(term).length - 1), 0);
+
+    // Normalize term-frequency score by document length so a 500KB
+    // doc doesn't beat a 350KB doc on common terms alone.
+    const rawScore = terms.reduce((acc, term) => acc + (text.split(term).length - 1), 0);
+    const normalizedScore = (rawScore / Math.max(1, doc.full_text.length)) * 100_000;
+
+    // Hard boost: if the query's cited policy ID appears in this doc's
+    // policy_id, this is the exact-match winner.
+    const policyIdHit = queryPolicyIds.some(id => doc.policy_id.toLowerCase().includes(id));
+    const idBoost = policyIdHit ? 1000 : 0;
+
+    // Soft boost: drug-class disambiguation. "adalimumab" should only
+    // match the adalimumab CPB, not the ustekinumab CPB even though
+    // both mention each other.
+    const drugBoost = (
+      (lowerQuery.includes('adalimumab') || lowerQuery.includes('humira')) &&
+        doc.policy_id.toLowerCase().includes('0341') ? 200 : 0
+    ) + (
+      (lowerQuery.includes('ustekinumab') || lowerQuery.includes('stelara')) &&
+        doc.policy_id.toLowerCase().includes('0314') ? 200 : 0
+    );
+
+    const docScore = idBoost + drugBoost + normalizedScore;
+
     const paragraphScores = doc.paragraphs.map((p) => {
       const lower = p.toLowerCase();
       const s = terms.reduce((acc, term) => acc + (lower.split(term).length - 1), 0);
@@ -83,6 +111,7 @@ export async function rankPoliciesAgainst(query: string): Promise<PolicyRanking[
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
       .filter(p => p.score > 0);
+
     return { doc, score: docScore, top_paragraphs: top };
   }).sort((a, b) => b.score - a.score);
 }
