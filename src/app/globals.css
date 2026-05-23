@@ -1,96 +1,235 @@
 @import "tailwindcss";
 
+/* ───────────────────────────────────────────────────────────────
+   PriorAuth Advocate — Design System
+   ProPublica-longform aesthetic
+   ─────────────────────────────────────────────────────────────── */
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
+  --pa-bg:        #FAF8F3;       /* warm off-white */
+  --pa-paper:     #F2EFE7;       /* slightly darker for cards */
+  --pa-paper-2:   #ECE8DC;       /* recessed wells */
+  --pa-ink:       #1F2421;       /* charcoal */
+  --pa-ink-2:     #4A4F4B;       /* muted */
+  --pa-ink-3:     #87877F;       /* faded label */
+  --pa-rule:      #1F2421;
+  --pa-rule-soft: rgba(31,36,33,0.12);
+  --pa-accent:    #1F4D2E;       /* deep forest green */
+  --pa-accent-soft: #C8D6CC;
+  --pa-accent-bg: rgba(31,77,46,0.06);
+  --pa-warn:      #8B2E2A;       /* claret */
+  --pa-success:   #1F4D2E;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-outfit);
+  --color-pa-bg: var(--pa-bg);
+  --color-pa-paper: var(--pa-paper);
+  --color-pa-ink: var(--pa-ink);
+  --color-pa-accent: var(--pa-accent);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  overflow-x: hidden;
+html, body {
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #020617;
-}
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+.pa-serif { font-family: "Charter", "Iowan Old Style", "Georgia", serif; }
+.pa-mono  { font-family: "iA Writer Mono S", "SF Mono", "Menlo", monospace; }
+
+.pa-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--pa-ink-3);
 }
 
-/* Glassmorphism styling helpers */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.pa-card {
+  background: var(--pa-paper);
+  border: 1px solid var(--pa-rule-soft);
+  border-radius: 4px;
+  padding: 1.5rem;
 }
 
-.glass-panel-glow {
-  box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.15);
+.pa-card-tight {
+  background: var(--pa-paper);
+  border: 1px solid var(--pa-rule-soft);
+  border-radius: 4px;
+  padding: 1rem;
 }
 
-.glow-text-indigo {
-  text-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+.pa-lane {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--pa-paper);
+  border: 1px solid var(--pa-rule-soft);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.pa-lane.is-running {
+  border-color: var(--pa-accent);
+  background: var(--pa-accent-bg);
+  box-shadow: 0 0 0 1px var(--pa-accent) inset, 0 0 16px rgba(31,77,46,0.18);
+}
+.pa-lane.is-done {
+  border-color: rgba(31,77,46,0.4);
+  background: rgba(31,77,46,0.04);
+}
+.pa-lane.is-error {
+  border-color: var(--pa-warn);
+  background: rgba(139,46,42,0.06);
 }
 
-.glow-text-emerald {
-  text-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+.pa-lane-num {
+  width: 1.5rem; height: 1.5rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: "Charter", serif;
+  font-size: 0.78rem;
+  background: var(--pa-paper-2);
+  color: var(--pa-ink-2);
+  border: 1px solid var(--pa-rule-soft);
+  flex-shrink: 0;
+}
+.pa-lane.is-done .pa-lane-num,
+.pa-lane.is-running .pa-lane-num {
+  background: var(--pa-accent);
+  color: white;
+  border-color: var(--pa-accent);
 }
 
-/* Waveform bar styling */
-@keyframes scale-bar {
-  0%, 100% {
-    transform: scaleY(0.2);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
-.waveform-bar {
-  display: inline-block;
-  width: 4px;
-  height: 24px;
-  background-color: rgb(99, 102, 241);
+.pa-btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--pa-ink);
+  color: var(--pa-bg);
+  border: none;
   border-radius: 2px;
-  transform-origin: center;
-  animation: scale-bar 1.2s ease-in-out infinite;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pa-btn:hover { background: var(--pa-accent); }
+.pa-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pa-btn:disabled:hover { background: var(--pa-ink); }
+
+.pa-btn-ghost {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--pa-ink);
+  border: 1px solid var(--pa-rule-soft);
+  border-radius: 2px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pa-btn-ghost:hover { border-color: var(--pa-ink); background: var(--pa-paper); }
+
+.pa-btn-accent {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--pa-accent);
+  color: white;
+  border: none;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 12px rgba(31,77,46,0.25);
+}
+.pa-btn-accent:hover { background: #163a23; box-shadow: 0 4px 18px rgba(31,77,46,0.35); }
+.pa-btn-accent:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@keyframes pa-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pa-pulse { animation: pa-pulse 1.8s ease-in-out infinite; }
+
+@keyframes pa-spin {
+  to { transform: rotate(360deg); }
+}
+.pa-spin {
+  width: 12px; height: 12px;
+  border: 2px solid var(--pa-accent-soft);
+  border-top-color: var(--pa-accent);
+  border-radius: 50%;
+  animation: pa-spin 0.8s linear infinite;
 }
 
-.waveform-bar:nth-child(2) {
-  animation-delay: 0.15s;
-  background-color: rgb(129, 140, 248);
+@keyframes pa-wave {
+  0%, 100% { height: 6px; }
+  50% { height: 22px; }
+}
+.pa-wave-bar {
+  width: 3px;
+  background: var(--pa-accent);
+  border-radius: 1px;
+  animation: pa-wave 0.8s ease-in-out infinite;
 }
 
-.waveform-bar:nth-child(3) {
-  animation-delay: 0.3s;
-  background-color: rgb(167, 139, 250);
+.pa-doc {
+  background: white;
+  border: 1px solid var(--pa-rule-soft);
+  border-radius: 2px;
+  padding: 2rem 2.25rem;
+  font-family: "Charter", "Iowan Old Style", serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--pa-ink);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 8px 24px -8px rgba(0,0,0,0.06);
+}
+.pa-doc h1 { font-size: 1.4rem; font-weight: 500; margin-bottom: 0.5rem; }
+.pa-doc h2 { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pa-ink-3); margin-top: 1rem; margin-bottom: 0.25rem; font-family: "Inter", sans-serif; font-weight: 600; }
+.pa-doc p { margin-bottom: 0.85rem; }
+.pa-doc strong { color: var(--pa-accent); font-weight: 600; }
+.pa-doc em { font-style: italic; color: var(--pa-ink-2); }
+.pa-doc .stamp {
+  display: inline-block;
+  border: 2px solid var(--pa-warn);
+  color: var(--pa-warn);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.3em 0.7em;
+  font-family: "Inter", sans-serif;
+  font-size: 0.75rem;
+  transform: rotate(-3deg);
 }
 
-.waveform-bar:nth-child(4) {
-  animation-delay: 0.45s;
-  background-color: rgb(139, 92, 246);
+.pa-footer-rule {
+  border-top: 1px solid var(--pa-rule);
+  padding-top: 0.6rem;
+  display: flex; justify-content: space-between;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pa-ink-3);
 }
 
-.waveform-bar:nth-child(5) {
-  animation-delay: 0.6s;
-  background-color: rgb(168, 85, 247);
+.pa-transcript-line {
+  display: grid;
+  grid-template-columns: 7ch 8ch 1fr;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--pa-rule-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
+.pa-transcript-line:last-child { border-bottom: 0; }
+.pa-transcript-line .ts { font-family: "iA Writer Mono S", "SF Mono", monospace; color: var(--pa-ink-3); font-size: 0.72rem; padding-top: 0.18rem; }
+.pa-transcript-line .who { font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pa-ink-3); padding-top: 0.2rem; }
+.pa-transcript-line.is-agent .who { color: var(--pa-accent); }
+.pa-transcript-line.is-rep .who { color: var(--pa-warn); }
+.pa-transcript-line .text { color: var(--pa-ink); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--pa-rule-soft); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pa-ink-3); }

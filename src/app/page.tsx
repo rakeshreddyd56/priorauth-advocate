@@ -5,7 +5,7 @@ import {
   Upload, CheckCircle, FileText, PhoneCall, Calendar, 
   ChevronRight, Shield, Activity, Clock, ExternalLink, 
   AlertTriangle, Play, Square, User, Sparkles, Cpu, 
-  Database, Server, Check, ArrowRight
+  Database, Server, Check, ArrowRight, Mail, Copy
 } from 'lucide-react';
 import { SAMPLE_DENIAL_LETTER_TEXT } from '@/lib/fallback-data';
 import { DenialLetter, PolicyMatch, AppealLetter, VoiceScript, CallResult, TrackingPlan } from '@/lib/schemas';
@@ -342,611 +342,460 @@ function Home() {
       });
   };
 
-  return (
-    <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 py-8">
-      {/* Header */}
-      <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-6 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-display font-black tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              PriorAuth Advocate
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              I/O Hackathon '26
-            </span>
-          </div>
-          <p className="text-slate-400 mt-2 text-sm max-w-xl">
-            Automating insurer prior authorization appeals via managed multi-agent workflows. 
-            <span className="block text-indigo-400 font-medium mt-1">
-              "Gemini thinks. ElevenLabs speaks. n8n remembers."
-            </span>
-          </p>
-        </div>
 
-        {/* Product Chips */}
-        <div className="flex flex-wrap gap-2 max-w-md md:justify-end">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            Gemini 3.5 Flash
+  // Render denial letter raw text as a styled letter
+  const renderDenialLetter = (text: string | undefined) => {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => (
+      <p key={i} style={{ margin: line.trim() ? '0 0 0.55rem 0' : '0.4rem 0', minHeight: line.trim() ? 'auto' : '0.4rem' }}>{line}</p>
+    ));
+  };
+
+  // Build a mailto: link with the drafted appeal letter body
+  const buildAppealMailto = () => {
+    if (!draftData) return '#';
+    const appeal = draftData.data;
+    const subject = encodeURIComponent(appeal.subject || `Appeal — Member ${intakeData?.data?.member_id || ''}`);
+    const body = encodeURIComponent(
+      `To: ${appeal.to_address || 'Aetna Appeals Department'}\n\n` +
+      (appeal.body_markdown || '') + '\n\n' +
+      `— PriorAuth Advocate · ${confirmationNumber ? 'Confirmation ' + confirmationNumber : 'Filed via voice agent'}\n` +
+      `Win-probability: ${Math.round((appeal.win_probability ?? 0) * 100)}%`
+    );
+    return `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const buildStatusMailto = () => {
+    if (!trackingPlan) return '#';
+    const subject = encodeURIComponent(`Appeal Status Update — Member ${intakeData?.data?.member_id || ''} — ${confirmationNumber || ''}`);
+    const followups = (trackingPlan.followups || []).map(f =>
+      `• ${new Date(f.at_iso).toLocaleDateString()} — ${f.task} (${f.status}, owned by ${f.owner})`
+    ).join('\n');
+    const body = encodeURIComponent(
+      `Appeal Status Tracker\n\n` +
+      `Patient: ${intakeData?.data?.patient_name_redacted || ''} (member ending ${(intakeData?.data?.member_id || '').slice(-4)})\n` +
+      `Service: ${intakeData?.data?.service_or_drug || ''}\n` +
+      `Filed: ${new Date(trackingPlan.filed_at_iso).toLocaleString()}\n` +
+      `Confirmation: ${confirmationNumber || '—'}\n` +
+      `Appeal deadline: ${new Date(trackingPlan.appeal_deadline_iso).toLocaleDateString()}\n\n` +
+      `Scheduled follow-ups (n8n):\n${followups}\n\n` +
+      `Escalation ready:\n` +
+      `  • State commissioner complaint: ${trackingPlan.escalation_ready?.state_complaint ? 'armed' : 'pending'}\n` +
+      `  • External IRO review packet: ${trackingPlan.escalation_ready?.external_review_packet ? 'armed' : 'pending'}\n\n` +
+      `— PriorAuth Advocate`
+    );
+    return `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  // Status-aware lane class
+  const laneClass = (done: boolean, running: boolean) =>
+    done ? 'pa-lane is-done' : running ? 'pa-lane is-running' : 'pa-lane';
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--pa-bg)' }}>
+      {/* ── Brand strip ────────────────────────────────────────────── */}
+      <header style={{ borderBottom: '1px solid var(--pa-rule-soft)', background: 'var(--pa-bg)' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '0.9rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+            <div style={{
+              width: '1.8rem', height: '1.8rem', borderRadius: '50%',
+              border: '1.5px solid var(--pa-accent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'Charter, serif', color: 'var(--pa-accent)', fontSize: '0.95rem'
+            }}>P</div>
+            <div>
+              <div className="pa-serif" style={{ fontSize: '1.05rem', lineHeight: 1 }}>PriorAuth Advocate</div>
+              <div className="pa-label" style={{ marginTop: '0.2rem', letterSpacing: '0.12em' }}>Administrative advocacy · not medical advice</div>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
-            <Cpu className="w-3.5 h-3.5 text-purple-400" />
-            Managed Agents
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            Vertex AI Vector Search
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
-            <Server className="w-3.5 h-3.5 text-pink-400" />
-            Firestore & Cloud Run
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--pa-ink-3)' }}>
+            <span>Gemini 3.5 Flash</span>
+            <span>·</span>
+            <span>Cloud Healthcare FHIR R4</span>
+            <span>·</span>
+            <span>ElevenLabs voice</span>
+            <span>·</span>
+            <span style={{ color: 'var(--pa-accent)' }}>● Live</span>
           </div>
         </div>
       </header>
 
-      {/* Safety Boundary Banner */}
-      <div className="mb-6 bg-slate-950 border border-indigo-900/30 rounded-xl p-4 flex items-start gap-3 glass-panel">
-        <Shield className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Non-Negotiable Safety Boundary:</strong> Administrative advocacy, not medical advice. Never recommend a treatment, diagnosis, dose, medication change, or clinical decision. The prescribing physician has already established the care regime. PriorAuth Advocate only reads insurer paperwork, quotes policy language, drafts administrative appeal letters, files appeals by simulated voice IVR, and monitors response deadlines.
-        </div>
-      </div>
+      {/* ── Main grid ───────────────────────────────────────────────── */}
+      <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '2rem', display: 'grid', gridTemplateColumns: '1fr 1.05fr 1.2fr', gap: '1.5rem' }}>
 
-      {/* Core Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left column: Lane tracker, input zone */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          
-          {/* Five Stable Status Lanes */}
-          <div className="rounded-xl glass-panel p-5 border border-slate-800 glass-panel-glow">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-400" />
-              Pipeline Execution Lanes
-            </h2>
-            <div className="space-y-4">
-              {/* Lane 1: Intake */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                intakeData ? 'bg-indigo-950/20 border-indigo-500/30' : 
-                currentLane === 'intake' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' : 
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    intakeData ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    1
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Intake Analysis</h3>
-                    <p className="text-[10px] text-slate-400">Gemini Vision OCR extraction</p>
-                  </div>
-                </div>
-                {intakeData && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                    {intakeData.source}
-                  </span>
-                )}
+        {/* ─── LEFT COLUMN: Denial letter input + view ─── */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="pa-label">01 · Denial letter</div>
+
+          {!intakeData ? (
+            <div className="pa-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{
+                border: '1.5px dashed var(--pa-rule-soft)',
+                borderRadius: '3px',
+                padding: '2rem 1rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}>
+                <Upload size={24} style={{ color: 'var(--pa-ink-3)', marginInline: 'auto', marginBottom: '0.6rem' }} />
+                <input type="file" accept="image/*,.txt" onChange={handleFileUpload} style={{ display: 'none' }} id="file-input" />
+                <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
+                  <div className="pa-serif" style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>Drop a denial letter</div>
+                  <div className="pa-label" style={{ letterSpacing: '0.1em' }}>image · OCR · or plain text</div>
+                </label>
               </div>
 
-              {/* Lane 2: Policy */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                policyData ? 'bg-indigo-950/20 border-indigo-500/30' : 
-                currentLane === 'policy' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' : 
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    policyData ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    2
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Policy Snippets</h3>
-                    <p className="text-[10px] text-slate-400">RAG Guideline Mapping</p>
-                  </div>
-                </div>
-                {policyData && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                    {policyData.source}
-                  </span>
-                )}
-              </div>
+              <textarea
+                value={denialText}
+                onChange={(e) => setDenialText(e.target.value)}
+                placeholder="…or paste the letter text"
+                rows={6}
+                style={{
+                  width: '100%', resize: 'vertical', minHeight: '6rem',
+                  background: 'var(--pa-bg)', border: '1px solid var(--pa-rule-soft)', borderRadius: '3px',
+                  padding: '0.7rem 0.85rem', fontSize: '0.82rem', color: 'var(--pa-ink)',
+                  fontFamily: 'iA Writer Mono S, SF Mono, monospace', lineHeight: 1.5,
+                }}
+              />
 
-              {/* Lane 3: Clinical Evidence (NEW — parallel with Policy) */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                clinicalEvidenceData ? 'bg-emerald-950/20 border-emerald-500/30' :
-                currentLane === 'clinical-evidence' || currentLane === 'policy' ? 'bg-slate-900 border-emerald-500/50 animate-pulse' :
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    clinicalEvidenceData ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    3
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Clinical Evidence</h3>
-                    <p className="text-[10px] text-slate-400">Cloud Healthcare API · FHIR R4</p>
-                  </div>
-                </div>
-                {clinicalEvidenceData && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-emerald-950/40 border border-emerald-700/30 text-emerald-300">
-                    {clinicalEvidenceData.data?.mode === 'live' ? '● LIVE FHIR' : clinicalEvidenceData.source}
-                  </span>
-                )}
-              </div>
+              <button
+                onClick={() => { setDenialText(SAMPLE_DENIAL_LETTER_TEXT); }}
+                className="pa-btn-ghost"
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <FileText size={14} /> Use Aetna / Humira sample
+              </button>
 
-              {/* Lane 4: Drafting */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                draftData ? 'bg-indigo-950/20 border-indigo-500/30' :
-                currentLane === 'draft' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    draftData ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    4
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Administrative appeal copy</h3>
-                    <p className="text-[10px] text-slate-400">Drafting Exception grounds</p>
-                  </div>
+              {uploadError && (
+                <div style={{ padding: '0.6rem 0.8rem', background: 'rgba(139,46,42,0.06)', border: '1px solid rgba(139,46,42,0.3)', color: 'var(--pa-warn)', fontSize: '0.82rem', borderRadius: '3px' }}>
+                  {uploadError}
                 </div>
-                {draftData && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                    {draftData.source}
-                  </span>
-                )}
+              )}
+            </div>
+          ) : (
+            /* Once intake completes, the raw letter renders as a document */
+            <div className="pa-doc" style={{ position: 'relative', maxHeight: '78vh', overflow: 'auto' }}>
+              <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+                <span className="stamp">DENIED</span>
               </div>
+              <div style={{ fontFamily: 'iA Writer Mono S, SF Mono, monospace', fontSize: '0.82rem', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
+                {renderDenialLetter(intakeData.data.raw_text)}
+              </div>
+              <div className="pa-footer-rule" style={{ marginTop: '1.5rem' }}>
+                <span>Source · {intakeData.source}</span>
+                <span>Extracted via Gemini 3.5 Flash Vision</span>
+              </div>
+            </div>
+          )}
 
-              {/* Lane 5: Voice */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                callState === 'completed' ? 'bg-indigo-950/20 border-indigo-500/30' :
-                callState === 'calling' || callState === 'connected' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    callState === 'completed' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    5
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Voice Filing Call</h3>
-                    <p className="text-[10px] text-slate-400">ElevenLabs · Twilio</p>
-                  </div>
+          {intakeData && (
+            <div className="pa-card-tight" style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+              <div className="pa-label">Extracted fields</div>
+              {([
+                ['Patient', intakeData.data.patient_name_redacted],
+                ['Member ID', intakeData.data.member_id],
+                ['Insurer', intakeData.data.insurer],
+                ['Plan', intakeData.data.plan_name],
+                ['Service', intakeData.data.service_or_drug],
+                ['Denial reason', intakeData.data.denial_reason_code],
+                ['Cited policy', intakeData.data.cited_policy_section],
+                ['Appeal deadline', intakeData.data.appeal_deadline_iso],
+              ] as const).filter(([_, v]) => !!v).map(([k, v]) => (
+                <div key={k} style={{ display: 'grid', gridTemplateColumns: '8rem 1fr', gap: '0.7rem', fontSize: '0.82rem' }}>
+                  <span style={{ color: 'var(--pa-ink-3)' }}>{k}</span>
+                  <span style={{ color: 'var(--pa-ink)' }}>{String(v)}</span>
                 </div>
-                {callState !== 'idle' && (
-                  <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border ${
-                    callState === 'completed' ? 'bg-emerald-950/30 text-emerald-400 border-emerald-500/20' : 'bg-indigo-950/30 text-indigo-400 border-indigo-500/20'
-                  }`}>
-                    {callState}
-                  </span>
-                )}
-              </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-              {/* Lane 6: Tracking */}
-              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                trackingPlan ? 'bg-indigo-950/20 border-indigo-500/30' :
-                isTrackingLoading ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
-                'bg-slate-950/40 border-slate-900'
-              }`}>
-                <div className="flex gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    trackingPlan ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    6
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-200">Durable Tracking</h3>
-                    <p className="text-[10px] text-slate-400">n8n calendar & monitoring</p>
+        {/* ─── CENTER COLUMN: Pipeline lanes ─── */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="pa-label">02 · Pipeline</div>
+
+          <div className="pa-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {/* Lane 1: Intake */}
+            <div className={laneClass(!!intakeData, currentLane === 'intake')}>
+              <div className="pa-lane-num">1</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Intake</div>
+                <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.72rem' }}>Gemini Vision OCR</div>
+              </div>
+              {intakeData ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> : currentLane === 'intake' ? <div className="pa-spin" /> : null}
+            </div>
+
+            {/* Lane 2: Policy + Clinical Evidence (parallel) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              <div className={laneClass(!!policyData, currentLane === 'policy')}>
+                <div className="pa-lane-num">2</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 500 }}>Policy</div>
+                  <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.7rem' }}>RAG · Aetna corpus</div>
+                </div>
+                {policyData ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> : currentLane === 'policy' ? <div className="pa-spin" /> : null}
+              </div>
+              <div className={laneClass(!!clinicalEvidenceData, currentLane === 'clinical-evidence' || currentLane === 'policy')}>
+                <div className="pa-lane-num">3</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 500 }}>Clinical Evidence</div>
+                  <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.7rem' }}>
+                    Cloud Healthcare FHIR {clinicalEvidenceData?.data?.mode === 'live' && <span style={{ color: 'var(--pa-accent)' }}>· LIVE</span>}
                   </div>
                 </div>
-                {trackingPlan && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                    Active
-                  </span>
-                )}
+                {clinicalEvidenceData ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> : currentLane === 'clinical-evidence' || currentLane === 'policy' ? <div className="pa-spin" /> : null}
               </div>
+            </div>
+
+            {/* Lane 4: Drafting */}
+            <div className={laneClass(!!draftData, currentLane === 'draft')}>
+              <div className="pa-lane-num">4</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drafting</div>
+                <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.72rem' }}>Gemini · structured JSON</div>
+              </div>
+              {draftData && <span className="pa-mono" style={{ fontSize: '0.72rem', color: 'var(--pa-accent)' }}>{Math.round((draftData.data.win_probability ?? 0) * 100)}% win</span>}
+              {draftData ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> : currentLane === 'draft' ? <div className="pa-spin" /> : null}
+            </div>
+
+            {/* Lane 5: Voice */}
+            <div className={laneClass(callState === 'completed', callState === 'calling' || callState === 'connected')}>
+              <div className="pa-lane-num">5</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Voice filing</div>
+                <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.72rem' }}>ElevenLabs · browser conversation</div>
+              </div>
+              {callState === 'completed' ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> :
+               callState === 'connected' || callState === 'calling' ? <div className="pa-spin" /> : null}
+            </div>
+
+            {/* Lane 6: Tracking */}
+            <div className={laneClass(!!trackingPlan, currentLane === 'tracking' || isTrackingLoading)}>
+              <div className="pa-lane-num">6</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Tracking</div>
+                <div className="pa-label" style={{ letterSpacing: '0.08em', textTransform: 'none', fontSize: '0.72rem' }}>n8n · Day 5 / 14 / 30 follow-ups</div>
+              </div>
+              {trackingPlan ? <Check size={14} style={{ color: 'var(--pa-accent)' }} /> : isTrackingLoading ? <div className="pa-spin" /> : null}
             </div>
           </div>
 
-          {/* Input & Upload Zone */}
-          <div className="rounded-xl glass-panel p-5 border border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center justify-between">
-              <span>Denial Letter Intake</span>
-              <button 
-                onClick={handleUseSample}
-                className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded hover:bg-indigo-500/5 transition-all"
-              >
-                Use Sample Denial
-              </button>
-            </h2>
-
-            {/* Upload Box */}
-            <div className="border-2 border-dashed border-slate-800 rounded-lg p-4 text-center hover:border-slate-700 transition-all bg-slate-950/40 cursor-pointer relative mb-4">
-              <input 
-                type="file" 
-                accept="image/*,text/plain" 
-                onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              />
-              <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
-              <p className="text-xs font-semibold text-slate-300">
-                {isUploading ? 'Uploading file...' : 'Upload insurer denial letter'}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">Accepts images (vision OCR) or plain text</p>
-            </div>
-
-            {/* Textarea for validation & edit */}
-            <div className="flex flex-col gap-1.5 mb-4">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Raw Paperwork Text</label>
-              <textarea 
-                value={denialText}
-                onChange={(e) => setDenialText(e.target.value)}
-                placeholder="Paste insurer denial letter content here..."
-                className="w-full h-40 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 focus:outline-none focus:border-indigo-500/50 font-mono resize-none"
-              />
-            </div>
-
-            {uploadError && (
-              <div className="mb-4 bg-red-950/20 border border-red-500/30 text-red-400 p-3 rounded-lg text-xs flex gap-2 items-start">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            {/* Run button */}
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
             <button
+              className="pa-btn-accent"
               onClick={runPipeline}
               disabled={isProcessing || !denialText.trim()}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-indigo-500/20 shadow-lg shadow-indigo-600/10"
+              style={{ flex: 1, minWidth: '12rem' }}
             >
-              {isProcessing ? (
-                <>
-                  <Clock className="w-4 h-4 animate-spin" />
-                  {currentLane === 'intake' && 'Analyzing Intake...'}
-                  {currentLane === 'policy' && 'Matching Policies...'}
-                  {currentLane === 'draft' && 'Drafting Appeal...'}
-                  {currentLane === 'voice' && 'Generating Script...'}
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  Run Multi-Agent Pipeline
-                </>
-              )}
+              {isProcessing ? <><div className="pa-spin" /> Running pipeline…</> : <><Play size={14} /> Run multi-agent pipeline</>}
             </button>
           </div>
 
-          {/* Wedge / Counterforce Pitch */}
-          <div className="rounded-xl bg-slate-950 border border-slate-900 p-4">
-            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Our Wedge</h3>
-            <p className="text-[11px] text-slate-400 leading-relaxed italic">
-              "Counterforce proved patients want AI appeals. Our wedge is the managed-agent workflow that files by phone, captures a confirmation number, and arms follow-up escalation."
-            </p>
-          </div>
-
-        </div>
-
-        {/* Right column: Lane output previews & simulations */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-
-          {/* Render Lane 1 & 2 Output: Intake & Policy Summary */}
-          {intakeData && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* Intake Details Card */}
-              <div className="rounded-xl glass-panel p-5 border border-slate-800">
-                <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
-                  <span>Intake Fields Extracted</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
-                    Lane 1
-                  </span>
-                </h3>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                    <span className="text-slate-500">Patient Initials</span>
-                    <span className="text-slate-200 font-semibold">{intakeData.data.patient_name_redacted || 'Redacted'}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                    <span className="text-slate-500">Member ID</span>
-                    <span className="text-slate-200 font-mono">{intakeData.data.member_id || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                    <span className="text-slate-500">Insurer</span>
-                    <span className="text-slate-200 font-semibold">{intakeData.data.insurer || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                    <span className="text-slate-500">Prescribed Care</span>
-                    <span className="text-indigo-400 font-semibold">{intakeData.data.service_or_drug || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                    <span className="text-slate-500">Denial Code</span>
-                    <span className="text-red-400 font-semibold">{intakeData.data.denial_reason_code || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Appeal Deadline</span>
-                    <span className="text-slate-300 font-medium">
-                      {intakeData.data.appeal_deadline_iso ? new Date(intakeData.data.appeal_deadline_iso).toLocaleDateString() : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Policy Matching Card */}
-              {policyData && (
-                <div className="rounded-xl glass-panel p-5 border border-slate-800">
-                  <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
-                    <span>Clinical Policy Match</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
-                      Lane 2
-                    </span>
-                  </h3>
-                  <div className="space-y-2 text-xs">
-                    <div className="border-b border-slate-900 pb-2">
-                      <span className="text-slate-500 block">Matched Guideline</span>
-                      <a href={policyData.data.source_url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 font-semibold inline-flex items-center gap-1 mt-0.5">
-                        {policyData.data.policy_title}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block mb-1">Satisfied Criteria Exceptions</span>
-                      <ul className="space-y-1">
-                        {policyData.data.clinical_criteria.map((criterion, idx) => (
-                          <li key={idx} className="flex gap-2 items-start text-slate-300 text-[11px]">
-                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                            <span>{criterion}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
+          {voiceScriptData && callState === 'idle' && (
+            <button onClick={startCallSimulation} className="pa-btn" style={{ background: 'var(--pa-warn)', justifyContent: 'center' }}>
+              <PhoneCall size={14} /> Place call · agent voice
+            </button>
+          )}
+          {(callState === 'calling' || callState === 'connected') && (
+            <button onClick={endCall} className="pa-btn-ghost" style={{ justifyContent: 'center', borderColor: 'var(--pa-warn)', color: 'var(--pa-warn)' }}>
+              <Square size={12} /> End call
+            </button>
           )}
 
-          {/* Lane 3: Drafted Appeal Letter */}
-          {draftData && (
-            <div className="rounded-xl glass-panel p-6 border border-slate-800">
-              <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-indigo-400" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-200">Lane 3: Appeal Letter Generated</h3>
-                    <p className="text-[10px] text-slate-400">{draftData.data.subject}</p>
-                  </div>
-                </div>
-                
-                {/* Win probability badge */}
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Appeal Strength</div>
-                  <div className="text-sm font-bold text-emerald-400 font-mono">
-                    {(draftData.data.win_probability * 100).toFixed(0)}% Win Prob.
-                  </div>
-                </div>
-              </div>
-
-              {/* Letter Preview Container */}
-              <div className="bg-slate-950/60 rounded-lg p-5 border border-slate-900/60 max-h-80 overflow-y-auto mb-4 font-sans text-xs">
-                {renderMarkdown(draftData.data.body_markdown)}
-              </div>
-
-              {/* Citations List */}
-              <div className="bg-slate-900/30 rounded-lg p-4 border border-slate-800 text-[11px] text-slate-400 space-y-2">
-                <span className="font-semibold text-slate-300 block">Policy & File Citations:</span>
-                {draftData.data.citations.map((cite, i) => (
-                  <div key={i} className="flex gap-2 border-l-2 border-indigo-500 pl-3 py-0.5">
-                    <div>
-                      <strong className="text-slate-200 block">{cite.source}</strong>
-                      <span>{cite.claim}</span>
-                    </div>
+          {/* Policy match output (when available) */}
+          {policyData && (
+            <div className="pa-card-tight">
+              <div className="pa-label" style={{ marginBottom: '0.5rem' }}>Policy match · {policyData.data.policy_id}</div>
+              <div className="pa-serif" style={{ fontSize: '0.92rem', marginBottom: '0.5rem' }}>{policyData.data.policy_title}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--pa-ink-2)', lineHeight: 1.5 }}>
+                {(policyData.data.clinical_criteria || []).slice(0, 2).map((c, i) => (
+                  <div key={i} style={{ marginBottom: '0.35rem', display: 'flex', gap: '0.4rem' }}>
+                    <span style={{ color: 'var(--pa-accent)' }}>›</span>
+                    <span>{c}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Lane 4: Voice Call Simulator */}
-          {voiceScriptData && (
-            <div className="rounded-xl glass-panel p-6 border border-slate-800 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <PhoneCall className="w-5 h-5 text-indigo-400" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-200">Lane 4: Insurer Voice Filing</h3>
-                    <p className="text-[10px] text-slate-400">Verbal Filing & Confirmation Capture</p>
+          {/* Clinical evidence corroboration */}
+          {clinicalEvidenceData && clinicalEvidenceData.data?.corroborated_facts?.length > 0 && (
+            <div className="pa-card-tight" style={{ borderLeft: '3px solid var(--pa-accent)' }}>
+              <div className="pa-label" style={{ marginBottom: '0.4rem' }}>FHIR corroboration {clinicalEvidenceData.data.mode === 'live' && '· LIVE'}</div>
+              {clinicalEvidenceData.data.corroborated_facts.slice(0, 1).map((f: any, i: number) => (
+                <div key={i} style={{ fontSize: '0.82rem' }}>
+                  <div style={{ color: 'var(--pa-ink-2)' }}>{f.field.replace(/_/g, ' ')}: <strong style={{ color: 'var(--pa-accent)' }}>{f.value}</strong></div>
+                  <div className="pa-label" style={{ marginTop: '0.3rem', letterSpacing: '0.06em', textTransform: 'none', fontSize: '0.7rem' }}>
+                    Source · {f.source.resourceType}/{f.source.id}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-                {callState === 'idle' && (
+        {/* ─── RIGHT COLUMN: Appeal letter + Call + Tracking ─── */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Appeal letter */}
+          {draftData && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+                <div className="pa-label">03 · Drafted appeal</div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <a href={buildAppealMailto()} className="pa-btn-ghost" style={{ fontSize: '0.72rem' }}>
+                    <Mail size={12} /> Email
+                  </a>
                   <button
-                    onClick={startCallSimulation}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-indigo-600/10"
+                    onClick={() => { navigator.clipboard.writeText(draftData.data.body_markdown || ''); }}
+                    className="pa-btn-ghost"
+                    style={{ fontSize: '0.72rem' }}
                   >
-                    <Play className="w-3.5 h-3.5" />
-                    Place Call
+                    <Copy size={12} /> Copy
                   </button>
+                </div>
+              </div>
+              <div className="pa-doc" style={{ maxHeight: '52vh', overflow: 'auto' }}>
+                <div style={{ fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--pa-ink-3)', marginBottom: '0.4rem' }}>
+                  To · {draftData.data.to_address}
+                </div>
+                <h1 className="pa-serif">{draftData.data.subject}</h1>
+                <div style={{ fontSize: '0.75rem', color: 'var(--pa-ink-3)', marginBottom: '1.2rem' }}>
+                  Win-probability {Math.round((draftData.data.win_probability ?? 0) * 100)}% · Drafted by Gemini 3.5 Flash
+                </div>
+                <div style={{ fontFamily: 'Charter, serif', fontSize: '0.92rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                  {draftData.data.body_markdown}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Voice call panel */}
+          {(callState === 'calling' || callState === 'connected' || callState === 'completed' || callSegments.length > 0) && (
+            <div>
+              <div className="pa-label" style={{ marginBottom: '0.5rem' }}>04 · Live conversation</div>
+              <div className="pa-card" style={{
+                background: callState === 'connected' || callState === 'calling' ? 'var(--pa-ink)' : 'var(--pa-paper)',
+                color: callState === 'connected' || callState === 'calling' ? '#F2EFE7' : 'var(--pa-ink)',
+                transition: 'background 0.3s, color 0.3s',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                  <div>
+                    <div className="pa-serif" style={{ fontSize: '1.1rem' }}>Aetna Member Appeals</div>
+                    <div className="pa-label" style={{ color: callState === 'connected' ? 'rgba(255,255,255,0.5)' : 'var(--pa-ink-3)', marginTop: '0.2rem' }}>
+                      {callState === 'completed' ? `Filed · ${confirmationNumber || 'A4-7821'}` :
+                       callState === 'connected' ? 'In conversation' :
+                       callState === 'calling' ? 'Connecting…' : 'Ready to call'}
+                    </div>
+                  </div>
+                  {(callState === 'connected' || callState === 'calling') && (
+                    <div style={{ display: 'flex', gap: '2px', alignItems: 'center', height: '22px' }}>
+                      {[0,1,2,3,4,5,6].map(i => (
+                        <div key={i} className="pa-wave-bar" style={{ animationDelay: `${i * 0.1}s`, background: '#C8D6CC' }} />
+                      ))}
+                    </div>
+                  )}
+                  {callState === 'completed' && (
+                    <CheckCircle size={20} style={{ color: 'var(--pa-accent)' }} />
+                  )}
+                </div>
+
+                {callSegments.length > 0 && (
+                  <div ref={transcriptEndRef} style={{ maxHeight: '24vh', overflow: 'auto', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.6rem' }}>
+                    {callSegments.filter(Boolean).map((seg, i) => (
+                      <div key={i} className={`pa-transcript-line ${seg?.speaker === 'agent' ? 'is-agent' : seg?.speaker === 'rep' ? 'is-rep' : ''}`}
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="ts">{seg?.t ?? 0}s</div>
+                        <div className="who">{seg?.speaker || 'sys'}</div>
+                        <div className="text" style={{ color: callState === 'connected' || callState === 'calling' ? '#F2EFE7' : 'var(--pa-ink)' }}>{seg?.text || ''}</div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Voice Script summary */}
-              {callState === 'idle' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-900/60">
-                      <span className="text-slate-500 block uppercase tracking-wider text-[10px] mb-1 font-semibold">Opening Line</span>
-                      <p className="text-slate-300 italic">"{voiceScriptData.data.opening_line}"</p>
-                    </div>
-                    <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-900/60">
-                      <span className="text-slate-500 block uppercase tracking-wider text-[10px] mb-1 font-semibold">Call Goal</span>
-                      <p className="text-slate-300">{voiceScriptData.data.call_goal}</p>
-                    </div>
+              {confirmationNumber && (
+                <div style={{ marginTop: '0.7rem', padding: '0.9rem 1.1rem', background: 'var(--pa-accent)', color: 'white', borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div className="pa-label" style={{ color: 'rgba(255,255,255,0.6)' }}>Confirmation number</div>
+                    <div className="pa-serif" style={{ fontSize: '1.6rem', marginTop: '0.15rem' }}>{confirmationNumber}</div>
                   </div>
-                  <div className="bg-slate-900/10 p-3 rounded-lg border border-slate-900/60 text-xs">
-                    <span className="text-slate-500 block uppercase tracking-wider text-[10px] mb-1 font-semibold">IVR Navigation Strategy</span>
-                    <div className="flex flex-wrap gap-2 mt-1.5">
-                      {voiceScriptData.data.ivr_strategy.map((strat, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300">
-                          {strat}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Outbound call logger */}
-              {callState !== 'idle' && (
-                <div className="space-y-4">
-                  {/* Phone Header Status */}
-                  <div className="flex items-center justify-between bg-slate-950 border border-slate-900 p-3.5 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-3 h-3 rounded-full bg-indigo-500 animate-ping absolute inset-0"></div>
-                        <div className="w-3 h-3 rounded-full bg-indigo-500 relative"></div>
-                      </div>
-                      <div className="text-xs">
-                        <div className="font-semibold text-slate-200">Outbound Appeal Dial</div>
-                        <div className="text-slate-400 font-mono text-[10px]">
-                          Dialing Aetna appeals representative · agent voicing the Gemini-written script
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Audio Animation */}
-                    {(callState === 'calling' || callState === 'connected') && (
-                      <div className="flex items-center gap-1">
-                        <span className="waveform-bar"></span>
-                        <span className="waveform-bar"></span>
-                        <span className="waveform-bar"></span>
-                        <span className="waveform-bar"></span>
-                        <span className="waveform-bar"></span>
-                      </div>
-                    )}
-
-                    {callState === 'completed' && (
-                      <div className="flex items-center gap-2 bg-emerald-950/30 border border-emerald-500/20 px-3 py-1 rounded text-emerald-400 text-xs font-semibold">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Confirmation Captured: {confirmationNumber}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Scrolling transcript terminal */}
-                  <div className="bg-slate-950 rounded-lg border border-slate-900 p-4 h-60 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-3">
-                    {callSegments.filter(Boolean).map((seg, i) => (
-                      <div key={i} className={`flex gap-3 items-start pb-2 border-b border-slate-900 last:border-0 ${
-                        seg?.speaker === 'agent' ? 'text-indigo-400' :
-                        seg?.speaker === 'rep' ? 'text-teal-400' :
-                        seg?.speaker === 'system' ? 'text-slate-500' :
-                        'text-pink-400'
-                      }`}>
-                        <span className="text-[10px] text-slate-600 font-medium shrink-0 pt-0.5">
-                          {seg?.t ?? 0}s
-                        </span>
-                        <div>
-                          <strong className="uppercase tracking-wider mr-2 text-[10px]">{seg?.speaker ?? 'unknown'}:</strong>
-                          <span>{seg?.text ?? ''}</span>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={transcriptEndRef} />
+                  <div style={{ fontSize: '0.75rem', textAlign: 'right', opacity: 0.85 }}>
+                    Aetna Appeals<br />
+                    Filed {new Date().toLocaleDateString()}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Lane 5: Tracking & Timeline */}
+          {/* Tracking timeline */}
           {trackingPlan && (
-            <div className="rounded-xl glass-panel p-6 border border-slate-800">
-              <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-indigo-400" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-200">Lane 5: Durable Follow-up Tracking</h3>
-                    <p className="text-[10px] text-slate-400">n8n Managed Timelines & Escalations</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400">Run ID: {trackingPlan.run_id}</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+                <div className="pa-label">05 · n8n tracking schedule</div>
+                <a href={buildStatusMailto()} className="pa-btn-ghost" style={{ fontSize: '0.72rem' }}>
+                  <Mail size={12} /> Email status
+                </a>
               </div>
-
-              {/* Timeline layout */}
-              <div className="relative border-l border-slate-800 pl-6 ml-3 space-y-6">
-                
-                {/* Filed Date */}
-                <div className="relative">
-                  <span className="absolute -left-[30px] top-1.5 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white border-4 border-slate-950">
-                    <Check className="w-2.5 h-2.5" />
-                  </span>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-200">Verbal Appeal Filed</div>
-                    <div className="text-[10px] text-slate-400">
-                      Filed at: {new Date(trackingPlan.filed_at_iso).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scheduled Followups */}
-                {trackingPlan.followups.map((item, i) => (
-                  <div key={i} className="relative">
-                    <span className={`absolute -left-[30px] top-1.5 flex items-center justify-center w-5 h-5 rounded-full text-white border-4 border-slate-950 ${
-                      item.status === 'scheduled' ? 'bg-indigo-500' : 'bg-slate-700'
-                    }`}>
-                      <Clock className="w-2.5 h-2.5" />
-                    </span>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-200 capitalize flex items-center gap-2">
-                        <span>{item.task.replace('_', ' ')}</span>
-                        <span className={`text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded border ${
-                          item.owner === 'n8n' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/20' : 'bg-slate-900 text-slate-400 border-slate-800'
-                        }`}>
-                          {item.owner}
-                        </span>
+              <div className="pa-card">
+                <div style={{ position: 'relative', paddingLeft: '1rem', borderLeft: '2px solid var(--pa-rule-soft)' }}>
+                  {(trackingPlan.followups || []).map((f, i) => {
+                    const date = new Date(f.at_iso);
+                    const days = Math.ceil((date.getTime() - new Date(trackingPlan.filed_at_iso).getTime()) / 86400000);
+                    return (
+                      <div key={i} style={{ position: 'relative', marginBottom: '1rem', paddingLeft: '0.85rem' }}>
+                        <div style={{
+                          position: 'absolute', left: '-1.41rem', top: '0.35rem',
+                          width: '0.65rem', height: '0.65rem', borderRadius: '50%',
+                          background: f.status === 'scheduled' ? 'var(--pa-accent)' : 'var(--pa-paper-2)',
+                          border: '2px solid var(--pa-bg)',
+                        }} />
+                        <div style={{ fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--pa-ink-3)' }}>
+                          Day {days} · {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 500, marginTop: '0.15rem' }}>
+                          {f.task.replace(/_/g, ' ')}
+                        </div>
+                        <div className="pa-label" style={{ letterSpacing: '0.06em', textTransform: 'none', fontSize: '0.72rem', marginTop: '0.15rem' }}>
+                          Owner · {f.owner} · {f.status}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400">
-                        Scheduled: {new Date(item.at_iso).toLocaleDateString()} ({item.status})
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Appeal Deadline */}
-                <div className="relative">
-                  <span className="absolute -left-[30px] top-1.5 flex items-center justify-center w-5 h-5 rounded-full bg-red-950 text-red-400 border-2 border-red-500/20">
-                    <AlertTriangle className="w-2.5 h-2.5" />
-                  </span>
-                  <div>
-                    <div className="text-xs font-semibold text-red-400">Hard Appeal Expiration</div>
-                    <div className="text-[10px] text-slate-400">
-                      Insurer deadline: {new Date(trackingPlan.appeal_deadline_iso).toLocaleDateString()}
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-
+                <div style={{ marginTop: '0.8rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {trackingPlan.escalation_ready?.state_complaint && (
+                    <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', background: 'var(--pa-accent-bg)', color: 'var(--pa-accent)', borderRadius: '2px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>State complaint armed</span>
+                  )}
+                  {trackingPlan.escalation_ready?.external_review_packet && (
+                    <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', background: 'var(--pa-accent-bg)', color: 'var(--pa-accent)', borderRadius: '2px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>IRO packet ready</span>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-        </div>
+          {!intakeData && (
+            <div className="pa-card-tight">
+              <div className="pa-label" style={{ marginBottom: '0.6rem' }}>Our wedge</div>
+              <p style={{ fontSize: '0.88rem', lineHeight: 1.55, color: 'var(--pa-ink-2)' }}>
+                Counterforce + Maxwell coach the patient through the call. <strong style={{ color: 'var(--pa-accent)' }}>We make the call.</strong> And n8n keeps fighting for 60 days after it.
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
 
-      </div>
-
-      {/* Footer */}
-      <footer className="mt-12 pt-6 border-t border-slate-900 text-center text-[11px] text-slate-500 flex flex-col sm:flex-row sm:justify-between items-center gap-4">
-        <div>
-          &copy; {new Date().getFullYear()} PriorAuth Advocate. Google I/O Hackathon Demo.
-        </div>
-        <div className="flex gap-4">
-          <span className="hover:text-slate-400 transition-colors">Documentation</span>
-          <span className="hover:text-slate-400 transition-colors">Privacy Policy</span>
-          <span className="hover:text-slate-400 transition-colors font-semibold text-slate-400">Administrative advocacy only. Not medical advice.</span>
+      {/* ── Footer ─────────────────────────────────────────────────── */}
+      <footer style={{ borderTop: '1px solid var(--pa-rule-soft)', marginTop: '2rem', background: 'var(--pa-bg)' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--pa-ink-3)' }}>
+            Powered by Gemini 3.5 Flash · Cloud Healthcare API · Vertex · ElevenLabs · n8n
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--pa-ink-3)', fontWeight: 600 }}>
+            Administrative advocacy. Not medical advice.
+          </div>
         </div>
       </footer>
     </div>
