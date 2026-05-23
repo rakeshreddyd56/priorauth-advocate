@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { SAMPLE_DENIAL_LETTER_TEXT } from '@/lib/fallback-data';
 import ArchitectureFlow from '@/components/ArchitectureFlow';
+import InteractivePitch from '@/components/InteractivePitch';
 import { DenialLetter, PolicyMatch, AppealLetter, VoiceScript, CallResult, TrackingPlan } from '@/lib/schemas';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
@@ -439,16 +440,8 @@ function Home() {
         </div>
       </header>
 
-      {/* ─── Pitch tab — embedded deck ─── */}
-      {activeTab === 'pitch' && (
-        <div style={{ height: 'calc(100vh - 64px)' }}>
-          <iframe
-            src="/deck.html"
-            style={{ width: '100%', height: '100%', border: 0 }}
-            title="PriorAuth Advocate Pitch Deck"
-          />
-        </div>
-      )}
+      {/* ─── Pitch tab — interactive walkthrough ─── */}
+      {activeTab === 'pitch' && <InteractivePitch />}
 
       {/* ─── Architecture tab — system diagram ─── */}
       {activeTab === 'architecture' && (

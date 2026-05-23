@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CallResultSchema } from '@/lib/schemas';
 import { MOCK_CALL_RESULT } from '@/lib/fallback-data';
-import { GoogleGenAI } from '@google/genai';
+import { getGeminiClient, GEMINI_MODEL } from '@/lib/gemini';
 import { rememberCallResult } from '@/lib/call-store';
 import crypto from 'crypto';
 
@@ -102,7 +102,7 @@ async function extractConfirmationNumber(
   if (!apiKey || !transcriptText) return null;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getGeminiClient();
 
     const prompt = `You are PriorAuth Advocate's post-call analysis module.
 Given the following phone-call transcript, extract the confirmation number,
@@ -117,7 +117,7 @@ Transcript:
 ${transcriptText}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: [{ text: prompt }],
     });
 

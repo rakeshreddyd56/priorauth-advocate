@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PolicyMatchSchema } from '@/lib/schemas';
 import { MOCK_POLICY_MATCH } from '@/lib/fallback-data';
-import { GoogleGenAI } from '@google/genai';
+import { getGeminiClient, GEMINI_MODEL } from '@/lib/gemini';
 import { rankPoliciesAgainst } from '@/lib/policy-corpus';
 import { POLICY_SYSTEM_INSTRUCTION } from '@/lib/prompts/policy';
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getGeminiClient();
 
     const userPrompt = `Extract the criteria and clauses from this insurer policy that match the denial reason. Return JSON conforming to the PolicyMatch schema.
 
@@ -73,7 +73,7 @@ Quote clinical_criteria verbatim from the excerpts above.
 For each pulled_clause, set page=1 (these come from web-scraped HTML, not paged PDFs).`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: [
         { role: 'user', parts: [{ text: userPrompt }] },
       ],

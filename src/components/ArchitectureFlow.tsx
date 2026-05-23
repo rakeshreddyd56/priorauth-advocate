@@ -4,23 +4,42 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, SkipForward, SkipBack } from 'lucide-react';
 
 // ──────────────────────────────────────────────────────────────────
-// Node positions on a 1600×640 canvas
+// Brand-aligned color palette
 // ──────────────────────────────────────────────────────────────────
-type NodeKind = 'pill' | 'circle' | 'tier-header';
+const COLORS = {
+  patient: '#1F2421',       // charcoal — the human in the loop
+  google:  '#1F4D2E',       // forest green — Google managed agents + Gemini
+  cloud:   '#4285F4',       // Google blue — Cloud Healthcare API + Vertex
+  eleven:  '#C5663F',       // warm rust — ElevenLabs voice
+  n8n:     '#EA4B71',       // n8n brand pink-red
+  gmail:   '#D04437',       // Google red — Gmail outputs
+  gov:     '#5C7080',       // slate blue-gray — government / external review
+} as const;
+
+// ──────────────────────────────────────────────────────────────────
+// Node positions on a 1600×720 canvas
+// Layout: three vertical bands (sub-agents at top, fan-in middle,
+// durable outputs row at bottom). No label collisions.
+// ──────────────────────────────────────────────────────────────────
+type NodeKind = 'pill' | 'circle';
 const NODES = {
-  user:        { x: 80,   y: 110, w: 80,  kind: 'circle' as NodeKind, label: 'Patient',           sub: 'Rakesh',                       icon: 'user' },
-  frontend:    { x: 80,   y: 280, w: 200, kind: 'pill' as NodeKind,   label: 'Dashboard',         sub: 'Next.js · 6-lane UI',           icon: 'window' },
-  orchestrator:{ x: 390,  y: 280, w: 220, kind: 'pill' as NodeKind,   label: 'Managed Agents',    sub: 'Gemini 3.5 Flash · planner',    icon: 'hub' },
-  intake:      { x: 760,  y: 110, w: 90,  kind: 'circle' as NodeKind, label: '① Intake',          sub: 'Vision OCR',                    icon: 'eye' },
-  policy:      { x: 760,  y: 280, w: 90,  kind: 'circle' as NodeKind, label: '② Policy',          sub: 'RAG · Aetna corpus',            icon: 'book' },
-  clinical:    { x: 760,  y: 450, w: 90,  kind: 'circle' as NodeKind, label: '③ Clinical',        sub: 'FHIR R4 · live',                icon: 'heart' },
-  drafting:    { x: 990,  y: 280, w: 90,  kind: 'circle' as NodeKind, label: '④ Drafting',        sub: 'AppealLetter',                  icon: 'pen' },
-  voiceprep:   { x: 1190, y: 280, w: 90,  kind: 'circle' as NodeKind, label: '⑤ Voice Prep',      sub: 'VoiceScript',                   icon: 'speech' },
-  elevenlabs:  { x: 1380, y: 280, w: 180, kind: 'pill' as NodeKind,   label: 'ElevenLabs',        sub: 'Live conversation',             icon: 'mic' },
-  n8n:         { x: 1190, y: 450, w: 200, kind: 'pill' as NodeKind,   label: 'n8n workflow',      sub: 'Durable · long-horizon',        icon: 'loop' },
-  gmail:       { x: 920,  y: 450, w: 150, kind: 'pill' as NodeKind,   label: 'Gmail status',      sub: 'Patient email',                 icon: 'envelope' },
-  iro:         { x: 720,  y: 540, w: 150, kind: 'pill' as NodeKind,   label: 'IRO packet',        sub: 'External review',               icon: 'document' },
-  doi:         { x: 900,  y: 540, w: 170, kind: 'pill' as NodeKind,   label: 'State DOI complaint', sub: 'Auto-escalation',            icon: 'building' },
+  // ── Tier 1+2: Patient + App layer (left column) ──
+  user:        { x: 80,   y: 110, w: 80,  kind: 'circle' as NodeKind, label: 'Patient',         sub: 'Rakesh',                    icon: 'user',      color: COLORS.patient, brand: 'human' },
+  frontend:    { x: 80,   y: 290, w: 200, kind: 'pill' as NodeKind,   label: 'Dashboard',       sub: 'Next.js · 6-lane UI',       icon: 'window',    color: COLORS.patient, brand: 'app' },
+  orchestrator:{ x: 380,  y: 290, w: 230, kind: 'pill' as NodeKind,   label: 'Managed Agents',  sub: 'Gemini 3.5 Flash planner',  icon: 'hub',       color: COLORS.google,  brand: 'Google · Vertex AI' },
+  // ── Tier 3: Sub-agents (three rows, vertical fan-out) ──
+  intake:      { x: 760,  y: 110, w: 90,  kind: 'circle' as NodeKind, label: '① Intake',        sub: 'Vision OCR',                icon: 'eye',       color: COLORS.google,  brand: 'Gemini' },
+  policy:      { x: 760,  y: 290, w: 90,  kind: 'circle' as NodeKind, label: '② Policy',        sub: 'RAG · Aetna corpus',        icon: 'book',      color: COLORS.google,  brand: 'Gemini' },
+  clinical:    { x: 760,  y: 460, w: 90,  kind: 'circle' as NodeKind, label: '③ Clinical',      sub: 'FHIR R4 · LIVE',            icon: 'heart',     color: COLORS.cloud,   brand: 'Cloud Healthcare' },
+  // ── Tier 4: Fan-in + voice runtime (mid horizontal row) ──
+  drafting:    { x: 980,  y: 290, w: 90,  kind: 'circle' as NodeKind, label: '④ Drafting',      sub: 'AppealLetter JSON',         icon: 'pen',       color: COLORS.google,  brand: 'Gemini' },
+  voiceprep:   { x: 1180, y: 290, w: 90,  kind: 'circle' as NodeKind, label: '⑤ Voice Prep',    sub: 'VoiceScript',               icon: 'speech',    color: COLORS.google,  brand: 'Gemini' },
+  elevenlabs:  { x: 1370, y: 290, w: 190, kind: 'pill' as NodeKind,   label: 'ElevenLabs',      sub: 'Live conversation',         icon: 'mic',       color: COLORS.eleven,  brand: 'ElevenLabs' },
+  // ── Tier 5: Durable + outputs (bottom row, all aligned at y=620) ──
+  n8n:         { x: 1370, y: 620, w: 190, kind: 'pill' as NodeKind,   label: 'n8n workflow',    sub: 'Durable · Day 5/14/30',     icon: 'loop',      color: COLORS.n8n,     brand: 'n8n' },
+  gmail:       { x: 1140, y: 620, w: 200, kind: 'pill' as NodeKind,   label: 'Gmail status',    sub: 'Patient email · auto-sent', icon: 'envelope',  color: COLORS.gmail,   brand: 'Gmail' },
+  iro:         { x: 880,  y: 620, w: 230, kind: 'pill' as NodeKind,   label: 'IRO packet',      sub: 'External review · Day 14',  icon: 'document',  color: COLORS.gov,     brand: 'External Review' },
+  doi:         { x: 600,  y: 620, w: 250, kind: 'pill' as NodeKind,   label: 'State DOI',       sub: 'Auto-escalation · Day 30',  icon: 'building',  color: COLORS.gov,     brand: 'State DOI' },
 } as const;
 type NodeKey = keyof typeof NODES;
 
@@ -238,35 +257,53 @@ const STEPS: { active: NodeKey[]; activeEdges: number[]; title: string; detail: 
 // ──────────────────────────────────────────────────────────────────
 // Path geometry — wavy bezier for organic feel
 // ──────────────────────────────────────────────────────────────────
+function nodeCenter(key: NodeKey) {
+  const n = NODES[key];
+  return n.kind === 'circle'
+    ? { cx: n.x + n.w / 2, cy: n.y, r: n.w / 2 }
+    : { cx: n.x + n.w / 2, cy: n.y + 25, w: n.w, h: 50 };
+}
+
 function pathBetween(from: NodeKey, to: NodeKey) {
   const a = NODES[from], b = NODES[to];
-  const ax = a.x + a.w / 2, ay = a.y;
-  const bx = b.x + b.w / 2, by = b.y;
+  const ax = a.x + a.w / 2;
+  const ay = a.kind === 'circle' ? a.y : a.y + 25;
+  const bx = b.x + b.w / 2;
+  const by = b.kind === 'circle' ? b.y : b.y + 25;
 
-  // Pick attachment points based on relative position
   const dx = bx - ax;
   const dy = by - ay;
-  let x1, y1, x2, y2;
+  let x1: number, y1: number, x2: number, y2: number;
 
-  if (Math.abs(dx) > Math.abs(dy) * 0.8) {
-    // Horizontal-dominant — attach on horizontal sides
-    x1 = dx > 0 ? a.x + a.w : a.x;
-    y1 = a.y + (a.kind === 'circle' ? 0 : 25);
-    x2 = dx > 0 ? b.x : b.x + b.w;
-    y2 = b.y + (b.kind === 'circle' ? 0 : 25);
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal-dominant — attach on left/right sides
+    const ar = a.kind === 'circle' ? a.w / 2 : a.w / 2;
+    const br = b.kind === 'circle' ? b.w / 2 : b.w / 2;
+    x1 = dx > 0 ? ax + ar : ax - ar;
+    y1 = ay;
+    x2 = dx > 0 ? bx - br : bx + br;
+    y2 = by;
   } else {
     // Vertical-dominant — attach top/bottom
-    x1 = a.x + a.w / 2;
-    y1 = dy > 0 ? a.y + (a.kind === 'circle' ? 32 : 50) : a.y - (a.kind === 'circle' ? 32 : 0);
-    x2 = b.x + b.w / 2;
-    y2 = dy > 0 ? b.y - (b.kind === 'circle' ? 32 : 0) : b.y + (b.kind === 'circle' ? 32 : 50);
+    const ar = a.kind === 'circle' ? a.w / 2 : 25;
+    const br = b.kind === 'circle' ? b.w / 2 : 25;
+    x1 = ax;
+    y1 = dy > 0 ? ay + ar : ay - ar;
+    x2 = bx;
+    y2 = dy > 0 ? by - br : by + br;
   }
 
-  const cx1 = x1 + (x2 - x1) * 0.5;
-  const cy1 = y1;
-  const cx2 = x1 + (x2 - x1) * 0.5;
-  const cy2 = y2;
-  return { d: `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`, mx: (x1 + x2) / 2, my: (y1 + y2) / 2 };
+  const midX = (x1 + x2) / 2;
+  const cx1 = Math.abs(dx) > Math.abs(dy) ? midX : x1;
+  const cy1 = Math.abs(dx) > Math.abs(dy) ? y1 : (y1 + y2) / 2;
+  const cx2 = Math.abs(dx) > Math.abs(dy) ? midX : x2;
+  const cy2 = Math.abs(dx) > Math.abs(dy) ? y2 : (y1 + y2) / 2;
+
+  return {
+    d: `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`,
+    mx: (x1 + x2) / 2,
+    my: (y1 + y2) / 2,
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -329,7 +366,7 @@ export default function ArchitectureFlow() {
 
       {/* ── SVG diagram ─────────────────────────────────────────── */}
       <div style={{ background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '4px', padding: '0.5rem' }}>
-        <svg viewBox="0 0 1600 660" style={{ width: '100%', display: 'block', fontFamily: 'Inter, sans-serif' }}>
+        <svg viewBox="0 0 1600 740" style={{ width: '100%', display: 'block', fontFamily: 'Inter, sans-serif' }}>
           <defs>
             <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--pa-accent)" />
@@ -339,37 +376,39 @@ export default function ArchitectureFlow() {
             </marker>
           </defs>
 
-          {/* ── Tier labels (horizontal bands) ── */}
-          <text x="20" y="40" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>① Patient</text>
-          <text x="20" y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>② App · managed agents</text>
-          <text x="700" y="40" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>③ Gemini 3.5 Flash sub-agents (parallel fan-out)</text>
-          <text x="1340" y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>④ Voice runtime</text>
-          <text x="700" y="435" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>⑤ Durable long-horizon · outputs</text>
+          {/* ── Tier labels — placed in negative space, no node collisions ── */}
+          <text x="80"   y="80"  fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>① Patient</text>
+          <text x="80"   y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>② App layer</text>
+          <text x="380"  y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-accent)" fontWeight="600" style={{ textTransform: 'uppercase' }}>③ Managed agents · Google Vertex AI</text>
+          <text x="760"  y="80"  fontSize="9" letterSpacing="2.5" fill="var(--pa-accent)" fontWeight="600" style={{ textTransform: 'uppercase' }}>④ Gemini 3.5 Flash sub-agents · parallel fan-out</text>
+          <text x="1370" y="265" fontSize="9" letterSpacing="2.5" fill="#C5663F" fontWeight="600" style={{ textTransform: 'uppercase' }}>⑤ Voice runtime · ElevenLabs</text>
+          <text x="80"   y="595" fontSize="9" letterSpacing="2.5" fill="#EA4B71" fontWeight="600" style={{ textTransform: 'uppercase' }}>⑥ Durable workflow · long-horizon outputs</text>
 
           {/* ── Edges ── */}
           {EDGES.map((edge, i) => {
             const isActive = activeEdges.has(i);
             const { d, mx, my } = pathBetween(edge.from, edge.to);
+            // Color the flow by the source node's brand color
+            const edgeColor = NODES[edge.from].color;
             return (
               <g key={i}>
                 <path
                   d={d} fill="none"
-                  stroke={isActive ? 'var(--pa-accent)' : 'rgba(31,36,33,0.18)'}
+                  stroke={isActive ? edgeColor : 'rgba(31,36,33,0.16)'}
                   strokeWidth={isActive ? 2 : 1}
-                  markerEnd={isActive ? 'url(#arrow-active)' : 'url(#arrow-idle)'}
                   style={{ transition: 'all 0.4s ease' }}
                 />
                 {isActive && (
                   <>
                     <path d={d} fill="none" stroke="white" strokeWidth="2.5" strokeDasharray="6 14" style={{ animation: 'pa-flow 1.4s linear infinite' }} />
-                    {/* Data shape label floating mid-edge */}
+                    {/* Data-shape label floating mid-edge */}
                     {edge.label && (
                       <g style={{ animation: 'pa-fade-in 0.4s ease' }}>
                         <rect
                           x={mx - (edge.label.length * 3.4 + 8)} y={my - 9}
                           width={edge.label.length * 6.8 + 16} height={18}
                           rx="9"
-                          fill="var(--pa-accent)"
+                          fill={edgeColor}
                         />
                         <text
                           x={mx} y={my + 3}
@@ -392,8 +431,8 @@ export default function ArchitectureFlow() {
             const n = NODES[key];
             const active = activeNodes.has(key);
 
-            const fillColor = active ? 'var(--pa-accent)' : '#FFFFFF';
-            const strokeColor = active ? 'var(--pa-accent)' : 'rgba(31,36,33,0.22)';
+            const fillColor = active ? n.color : '#FFFFFF';
+            const strokeColor = active ? n.color : 'rgba(31,36,33,0.22)';
             const textColor = active ? '#FAF8F3' : 'var(--pa-ink)';
             const subColor = active ? 'rgba(250,248,243,0.78)' : 'var(--pa-ink-3)';
 
@@ -404,14 +443,15 @@ export default function ArchitectureFlow() {
               return (
                 <g key={key} style={{ transition: 'all 0.4s ease' }}>
                   {active && (
-                    <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke="var(--pa-accent)" strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
+                    <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke={n.color} strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
                   )}
                   <circle cx={cx} cy={cy} r={r} fill={fillColor} stroke={strokeColor} strokeWidth={active ? 2 : 1} style={{ transition: 'all 0.4s ease' }} />
                   <g transform={`translate(${cx}, ${cy - 5})`} color={textColor} style={{ transition: 'color 0.4s ease' }}>
                     {ICON_PATHS[n.icon]}
                   </g>
-                  <text x={cx} y={cy + 60} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill={active ? 'var(--pa-ink)' : 'var(--pa-ink)'} textAnchor="middle">{n.label}</text>
-                  <text x={cx} y={cy + 76} fontSize="10" fill="var(--pa-ink-3)" textAnchor="middle">{n.sub}</text>
+                  <text x={cx} y={cy + 60} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill="var(--pa-ink)" textAnchor="middle">{n.label}</text>
+                  <text x={cx} y={cy + 76} fontSize="10" fill={n.color} textAnchor="middle" letterSpacing="0.08em" style={{ textTransform: 'uppercase' }}>{n.brand}</text>
+                  <text x={cx} y={cy + 90} fontSize="9.5" fill="var(--pa-ink-3)" textAnchor="middle">{n.sub}</text>
                 </g>
               );
             }
@@ -420,36 +460,43 @@ export default function ArchitectureFlow() {
             return (
               <g key={key} style={{ transition: 'all 0.4s ease' }}>
                 {active && (
-                  <rect x={n.x - 6} y={n.y - 6} width={n.w + 12} height="62" rx="33" fill="none" stroke="var(--pa-accent)" strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
+                  <rect x={n.x - 6} y={n.y - 6} width={n.w + 12} height="62" rx="33" fill="none" stroke={n.color} strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
                 )}
                 <rect x={n.x} y={n.y} width={n.w} height="50" rx="25" fill={fillColor} stroke={strokeColor} strokeWidth={active ? 2 : 1} style={{ transition: 'all 0.4s ease' }} />
                 <g transform={`translate(${n.x + 22}, ${n.y + 25})`} color={textColor} style={{ transition: 'color 0.4s ease' }}>
                   {ICON_PATHS[n.icon]}
                 </g>
-                <text x={n.x + 44} y={n.y + 21} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill={textColor} style={{ transition: 'fill 0.4s ease' }}>{n.label}</text>
-                <text x={n.x + 44} y={n.y + 37} fontSize="10" fill={subColor} style={{ transition: 'fill 0.4s ease' }}>{n.sub}</text>
+                <text x={n.x + 44} y={n.y + 20} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill={textColor} style={{ transition: 'fill 0.4s ease' }}>{n.label}</text>
+                <text x={n.x + 44} y={n.y + 36} fontSize="9.5" fill={subColor} style={{ transition: 'fill 0.4s ease' }}>{n.sub}</text>
+                {/* brand chip outside the pill */}
+                <text x={n.x + n.w / 2} y={n.y + 65} fontSize="9.5" fill={n.color} textAnchor="middle" letterSpacing="0.08em" style={{ textTransform: 'uppercase' }}>{n.brand}</text>
               </g>
             );
           })}
         </svg>
       </div>
 
-      {/* ── Legend ──────────────────────────────────────────────── */}
-      <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--pa-ink-2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '14px', height: '14px', background: 'var(--pa-accent)', borderRadius: '50%' }} />
-          Active in this step
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '14px', height: '14px', background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '50%' }} />
-          Idle component
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '24px', height: '2px', background: 'var(--pa-accent)' }} />
-          Live data flow with payload label
-        </div>
-        <div style={{ marginLeft: 'auto', color: 'var(--pa-ink-3)' }}>
-          {step}/{STEPS.length - 1}
+      {/* ── Stack legend (color → vendor) ────────────────────────── */}
+      <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: 'var(--pa-paper)', border: '1px solid var(--pa-rule-soft)', borderRadius: '3px' }}>
+        <div className="pa-label" style={{ marginBottom: '0.6rem' }}>Stack legend</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem 1rem', fontSize: '0.8rem' }}>
+          {[
+            { c: COLORS.google, name: 'Google managed agents', detail: 'Gemini 3.5 Flash · 5 sub-agents' },
+            { c: COLORS.cloud,  name: 'Cloud Healthcare API',  detail: 'FHIR R4 · live patient pull' },
+            { c: COLORS.eleven, name: 'ElevenLabs',            detail: 'Conversational AI voice' },
+            { c: COLORS.n8n,    name: 'n8n',                   detail: 'Durable workflow · Day 5/14/30' },
+            { c: COLORS.gmail,  name: 'Gmail',                 detail: 'Patient status email' },
+            { c: COLORS.gov,    name: 'External IRO · State DOI', detail: 'Auto-escalation outputs' },
+            { c: COLORS.patient, name: 'Patient / App layer',  detail: 'User-facing surface' },
+          ].map(item => (
+            <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+              <div style={{ width: '14px', height: '14px', background: item.c, borderRadius: '50%', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--pa-ink)' }}>{item.name}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--pa-ink-3)', marginTop: '0.1rem' }}>{item.detail}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

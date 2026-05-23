@@ -3,7 +3,7 @@ import { DenialLetterSchema } from '@/lib/schemas';
 import { MOCK_DENIAL_LETTER } from '@/lib/fallback-data';
 import { INTAKE_SYSTEM_INSTRUCTION } from '@/lib/prompts/intake';
 import { verifyEnv } from '@/lib/env';
-import { GoogleGenAI } from '@google/genai';
+import { getGeminiClient, GEMINI_MODEL } from '@/lib/gemini';
 
 export async function POST(request: NextRequest) {
   // Check required environment variables
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = getGeminiClient();
     let contents: any[] = [];
 
     if (imageBase64 && imageMimeType) {
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: contents,
       config: {
         systemInstruction: INTAKE_SYSTEM_INSTRUCTION,

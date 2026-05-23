@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AppealLetterSchema } from '@/lib/schemas';
 import { MOCK_APPEAL_LETTER } from '@/lib/fallback-data';
-import { GoogleGenAI } from '@google/genai';
+import { getGeminiClient, GEMINI_MODEL } from '@/lib/gemini';
 import { DRAFTING_SYSTEM_INSTRUCTION } from '@/lib/prompts/drafting';
 
 export async function POST(request: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getGeminiClient();
 
     const userPrompt = `Draft an administrative appeal letter for the following.
 
@@ -41,7 +41,7 @@ ${JSON.stringify(clinical_evidence, null, 2)}` : ''}
 Use the patient's initials from denial.patient_name_redacted (e.g. "R. R.") in the letter subject and body. Cite at least one clinical_criteria item verbatim from the matched policy. If clinical evidence is present, reference the corroborated fact ("documented in the patient's medical record via the prescribing physician's EHR — Cloud Healthcare API FHIR R4").`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: DRAFTING_SYSTEM_INSTRUCTION,
