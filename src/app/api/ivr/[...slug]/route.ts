@@ -15,10 +15,10 @@ async function handleIvr(request: NextRequest, paramsPromise: Promise<{ slug: st
 
   let twiml = '';
 
-  if (path === 'start') {
+  if (path === 'start' || path === 'answer') {
     twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Amy-Neural">Thank you for calling Anthem Blue Cross. For member services, press 1. For provider prior authorization appeals, press 2.</Say>
+  <Say voice="Polly.Amy-Neural">Thank you for calling Aetna member services. For benefits, press 1. For claims, press 2. For prior authorization appeals, press 3.</Say>
   <Gather numDigits="1" action="/api/ivr/provider-menu" method="POST" timeout="10"/>
 </Response>`;
   } else if (path === 'provider-menu') {
@@ -36,14 +36,20 @@ async function handleIvr(request: NextRequest, paramsPromise: Promise<{ slug: st
   } else if (path === 'prior-auth') {
     twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Amy-Neural">Connecting you to a Prior Authorization Specialist. Please hold.</Say>
-  <Play>http://demo.twilio.com/docs/classic.mp3</Play>
+  <Say voice="Polly.Amy-Neural">Connecting you to a prior authorization appeals specialist. Please describe the appeal in thirty seconds, beginning after the tone.</Say>
+  <Record maxLength="30" playBeep="true" action="/api/ivr/confirmation" method="POST"/>
+</Response>`;
+  } else if (path === 'confirmation') {
+    twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Amy-Neural">Thank you. Your appeal has been recorded. Your confirmation number is: A 4 dash 7 8 2 1. Again, that is Alpha 4 dash 7 8 2 1. A representative will follow up within thirty days. Goodbye.</Say>
+  <Hangup/>
 </Response>`;
   } else {
     // Default fallback
     twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Amy-Neural">Welcome to Anthem Blue Cross. Your call has been successfully routed.</Say>
+  <Say voice="Polly.Amy-Neural">Welcome to Aetna member services. Your call has been successfully routed.</Say>
   <Hangup/>
 </Response>`;
   }
