@@ -11,7 +11,20 @@ export const DenialLetterSchema = z.object({
   cited_policy_section: z.string().nullable(),
   appeal_deadline_iso: z.string().nullable(),
   contact_phone: z.string().nullable(),
-  raw_text: z.string()
+  raw_text: z.string(),
+  // Extended metadata for Live v2
+  confidences: z.object({
+    patient_name_redacted: z.number().nullable(),
+    member_id: z.number().nullable(),
+    insurer: z.number().nullable(),
+    plan_name: z.number().nullable(),
+    service_or_drug: z.number().nullable(),
+    denial_reason_code: z.number().nullable(),
+    denial_reason_text: z.number().nullable(),
+    cited_policy_section: z.number().nullable(),
+    appeal_deadline_iso: z.number().nullable(),
+    contact_phone: z.number().nullable()
+  }).optional()
 });
 
 export type DenialLetter = z.infer<typeof DenialLetterSchema>;
