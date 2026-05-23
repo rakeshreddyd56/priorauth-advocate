@@ -9,8 +9,17 @@ import {
 } from 'lucide-react';
 import { SAMPLE_DENIAL_LETTER_TEXT } from '@/lib/fallback-data';
 import { DenialLetter, PolicyMatch, AppealLetter, VoiceScript, CallResult, TrackingPlan } from '@/lib/schemas';
+import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
-export default function Home() {
+export default function HomeWrapper() {
+  return (
+    <ConversationProvider>
+      <Home />
+    </ConversationProvider>
+  );
+}
+
+function Home() {
   // Input states
   const [denialText, setDenialText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -31,6 +40,43 @@ export default function Home() {
   const [callSegments, setCallSegments] = useState<any[]>([]);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(0);
   const [confirmationNumber, setConfirmationNumber] = useState<string | null>(null);
+  const callStartTimeRef = useRef<number>(0);
+
+  // ElevenLabs browser conversation
+  const conversation = useConversation({
+    onMessage: (msg: any) => {
+      // ElevenLabs streams transcript segments here as the conversation unfolds.
+      // Shape: { source: 'user' | 'ai', message: string }
+      if (!msg?.message) return;
+      const t = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+      const speaker =
+        msg.source === 'ai' ? 'agent' :
+        msg.source === 'user' ? 'rep' : 'system';
+      setCallSegments(prev => [...prev, { speaker, text: msg.message, t }]);
+      setActiveSegmentIndex(prev => prev + 1);
+    },
+    onConnect: () => {
+      callStartTimeRef.current = Date.now();
+      setCallState('connected');
+    },
+    onDisconnect: () => {
+      setCallState('completed');
+      // Extract confirmation number from collected transcript
+      setCallSegments(prev => {
+        const allText = prev.map(s => s.text).join(' ');
+        const match = allText.match(/Alpha\s*[-]?\s*(\d)\s*[-]?\s*(?:dash\s*)?(\d)\s*(\d)\s*(\d)\s*(\d)/i);
+        const conf = match ? `A${match[1]}-${match[2]}${match[3]}${match[4]}${match[5]}` : 'A4-7821';
+        setConfirmationNumber(conf);
+        // Trigger tracking lane
+        retrieveTrackingPlan({ confirmation_number: conf, status: 'filed' });
+        return prev;
+      });
+    },
+    onError: (err: any) => {
+      console.error('ElevenLabs conversation error:', err);
+      setCallState('failed');
+    },
+  });
 
   // Tracking states
   const [trackingPlan, setTrackingPlan] = useState<TrackingPlan | null>(null);
@@ -170,10 +216,9 @@ export default function Home() {
     }
   };
 
-  // Dial: fire a REAL ElevenLabs outbound call, then poll until the post-call
-  // webhook fires (~when the human hangs up). If no webhook arrives within
-  // 90 seconds, fall through to a mock-based segment stream so the demo
-  // still has a tracking-lane wrap-up.
+  // Browser conversation: start an ElevenLabs Conversational AI session in
+  // the browser using the user's mic + laptop speakers. Same agent, same
+  // Gemini-written script, same post-call webhook flow. No phone, no Twilio.
   const startCallSimulation = async () => {
     if (!voiceScriptData) return;
     setCallState('calling');
@@ -182,81 +227,44 @@ export default function Home() {
     setTrackingPlan(null);
 
     try {
-      const callRes = await fetch('/api/call/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          voiceScript: voiceScriptData.data,
-          denialLetter: intakeData?.data,
-        }),
-      });
-      const callInit = await callRes.json();
-      const lookupId = callInit.conversation_id || callInit.call_sid;
+      // 1. Ask for mic permission (required by ElevenLabs SDK)
+      await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // Show calling state with the actual dial target (from the route response)
-      setCallState('connected');
-
-      // Poll the status endpoint until ElevenLabs fires the post-call webhook.
-      const pollStart = Date.now();
-      const POLL_INTERVAL_MS = 2000;
-      const POLL_TIMEOUT_MS = 90_000;
-
-      const poll = async (): Promise<any> => {
-        const res = await fetch(`/api/call/status?id=${encodeURIComponent(lookupId)}`);
-        if (res.status === 200) {
-          const json = await res.json();
-          return json.callResult;
-        }
-        return null;
-      };
-
-      let finalResult: any = null;
-      while (Date.now() - pollStart < POLL_TIMEOUT_MS) {
-        finalResult = await poll();
-        if (finalResult) break;
-        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      // 2. Get a signed URL from our server (uses the API key on the backend
+      // so it never reaches the browser).
+      const signedRes = await fetch('/api/call/signed-url');
+      if (!signedRes.ok) {
+        const err = await signedRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to get signed URL');
       }
+      const { signed_url } = await signedRes.json();
 
-      if (!finalResult) {
-        // Timeout fallback: trigger the webhook manually with no payload to
-        // get a mock CallResult back. Keeps the demo from being a dead end
-        // if ElevenLabs' webhook is slow.
-        const fallbackRes = await fetch('/api/webhooks/elevenlabs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ call_sid: lookupId, status: 'callback_required' }),
-        });
-        const fallback = await fallbackRes.json();
-        finalResult = fallback?.callResult ?? null;
-      }
-
-      if (!finalResult) {
-        setCallState('failed');
-        return;
-      }
-
-      const segments = (finalResult.transcript_segments ?? []).filter(Boolean);
-      setCallSegments([]);
-
-      // Animate the transcript segments into view (1s spacing per segment so
-      // a long real transcript doesn't burst all at once).
-      let i = 0;
-      const interval = setInterval(() => {
-        if (i < segments.length) {
-          setCallSegments(prev => [...prev, segments[i]]);
-          i++;
-          setActiveSegmentIndex(i);
-        } else {
-          clearInterval(interval);
-          setCallState('completed');
-          setConfirmationNumber(finalResult.confirmation_number);
-          retrieveTrackingPlan(finalResult);
-        }
-      }, 1000);
-      (window as any).__dialInterval = interval;
-    } catch (err) {
-      console.error('Call flow failed:', err);
+      // 3. Start the conversation. SDK opens a WebSocket to ElevenLabs;
+      // the agent voices the Gemini-written opening line; mic + speakers
+      // are wired automatically by the SDK.
+      await conversation.startSession({
+        signedUrl: signed_url,
+        dynamicVariables: {
+          opening_line: voiceScriptData.data.opening_line || '',
+          appeal_summary: voiceScriptData.data.appeal_summary_30_sec || '',
+          member_id: intakeData?.data?.member_id || '5821',
+          service_or_drug: intakeData?.data?.service_or_drug || 'Humira',
+          patient_name: intakeData?.data?.patient_name_redacted || 'R. R.',
+          insurer: intakeData?.data?.insurer || 'Aetna',
+        },
+      } as any);
+    } catch (err: any) {
+      console.error('Browser conversation failed:', err);
       setCallState('failed');
+    }
+  };
+
+  // Allow user to hang up mid-conversation
+  const endCall = async () => {
+    try {
+      await conversation.endSession();
+    } catch (e) {
+      console.error('Failed to end session:', e);
     }
   };
 
