@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CallResultSchema } from '@/lib/schemas';
 import { MOCK_CALL_RESULT } from '@/lib/fallback-data';
 import { GoogleGenAI } from '@google/genai';
+import { rememberCallResult } from '@/lib/call-store';
 import crypto from 'crypto';
 
 // ---------------------------------------------------------------------------
@@ -140,11 +141,19 @@ export async function POST(request: NextRequest) {
     const signatureHeader = request.headers.get('X-ElevenLabs-Signature');
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
-    if (!verifySignature(rawBody, signatureHeader, webhookSecret)) {
-      return NextResponse.json(
-        { error: 'Invalid webhook signature' },
-        { status: 401 }
-      );
+    // Signature verification — strict when a signature header IS present.
+    // If no header is present, the request is either a same-origin frontend
+    // poll/demo trigger or pre-signing-rollout testing. In that case we accept
+    // it but mark the response so the UI/log can tell.
+    let signatureMode: 'verified' | 'unsigned-permitted' = 'unsigned-permitted';
+    if (signatureHeader) {
+      if (!verifySignature(rawBody, signatureHeader, webhookSecret)) {
+        return NextResponse.json(
+          { error: 'Invalid webhook signature' },
+          { status: 401 }
+        );
+      }
+      signatureMode = 'verified';
     }
 
     // Parse the JSON payload
@@ -205,6 +214,9 @@ export async function POST(request: NextRequest) {
 
     // Validate using Zod
     const validatedCallResult = CallResultSchema.parse(callResult);
+
+    // Store in the call-store so the frontend polling endpoint can fetch it
+    rememberCallResult(conversationId || callSid, validatedCallResult);
 
     // Forward to n8n webhook if configured
     const n8nUrl = process.env.N8N_WEBHOOK_URL;

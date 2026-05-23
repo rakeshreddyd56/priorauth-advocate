@@ -20,11 +20,15 @@ export async function POST(request: NextRequest) {
       const agentId = process.env.ELEVENLABS_AGENT_ID!;
       const agentPhoneNumberId = process.env.ELEVENLABS_PHONE_NUMBER_ID!;
 
-      // Extract the customer phone from the denial letter
-      const customerPhone = denialLetter?.contact_phone;
+      // Pick the target phone number.
+      // DEMO_CALL_TARGET_PHONE overrides denialLetter.contact_phone — used when
+      // dialing a real human on stage (Twilio trial accounts are limited to
+      // one number, so the agent can't call its own Twilio IVR). In production,
+      // remove DEMO_CALL_TARGET_PHONE and the call dials the insurer line.
+      const customerPhone = process.env.DEMO_CALL_TARGET_PHONE || denialLetter?.contact_phone;
       if (!customerPhone) {
         return NextResponse.json(
-          { error: 'denialLetter.contact_phone is required for live calls' },
+          { error: 'No target phone — set DEMO_CALL_TARGET_PHONE env var or supply denialLetter.contact_phone' },
           { status: 400 }
         );
       }

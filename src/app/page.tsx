@@ -170,7 +170,10 @@ export default function Home() {
     }
   };
 
-  // Dial Simulator
+  // Dial: fire a REAL ElevenLabs outbound call, then poll until the post-call
+  // webhook fires (~when the human hangs up). If no webhook arrives within
+  // 90 seconds, fall through to a mock-based segment stream so the demo
+  // still has a tracking-lane wrap-up.
   const startCallSimulation = async () => {
     if (!voiceScriptData) return;
     setCallState('calling');
@@ -178,50 +181,81 @@ export default function Home() {
     setConfirmationNumber(null);
     setTrackingPlan(null);
 
-    // Call start endpoint
     try {
       const callRes = await fetch('/api/call/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voiceScript: voiceScriptData.data })
-      });
-      const callInitResult = await callRes.json();
-
-      // Retrieve full segments from database to stream them in UI
-      // We will pull the mock call result segments
-      const webhookRes = await fetch('/api/webhooks/elevenlabs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          call_sid: callInitResult.call_sid,
-          status: 'filed'
-        })
+          voiceScript: voiceScriptData.data,
+          denialLetter: intakeData?.data,
+        }),
       });
-      const webhookResult = await webhookRes.json();
-      const segments = (webhookResult?.callResult?.transcript_segments ?? []).filter(Boolean);
+      const callInit = await callRes.json();
+      const lookupId = callInit.conversation_id || callInit.call_sid;
 
-      setCallSegments([]);
-      let segmentIndex = 0;
+      // Show calling state with the actual dial target (from the route response)
       setCallState('connected');
 
+      // Poll the status endpoint until ElevenLabs fires the post-call webhook.
+      const pollStart = Date.now();
+      const POLL_INTERVAL_MS = 2000;
+      const POLL_TIMEOUT_MS = 90_000;
+
+      const poll = async (): Promise<any> => {
+        const res = await fetch(`/api/call/status?id=${encodeURIComponent(lookupId)}`);
+        if (res.status === 200) {
+          const json = await res.json();
+          return json.callResult;
+        }
+        return null;
+      };
+
+      let finalResult: any = null;
+      while (Date.now() - pollStart < POLL_TIMEOUT_MS) {
+        finalResult = await poll();
+        if (finalResult) break;
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      }
+
+      if (!finalResult) {
+        // Timeout fallback: trigger the webhook manually with no payload to
+        // get a mock CallResult back. Keeps the demo from being a dead end
+        // if ElevenLabs' webhook is slow.
+        const fallbackRes = await fetch('/api/webhooks/elevenlabs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ call_sid: lookupId, status: 'callback_required' }),
+        });
+        const fallback = await fallbackRes.json();
+        finalResult = fallback?.callResult ?? null;
+      }
+
+      if (!finalResult) {
+        setCallState('failed');
+        return;
+      }
+
+      const segments = (finalResult.transcript_segments ?? []).filter(Boolean);
+      setCallSegments([]);
+
+      // Animate the transcript segments into view (1s spacing per segment so
+      // a long real transcript doesn't burst all at once).
+      let i = 0;
       const interval = setInterval(() => {
-        if (segmentIndex < segments.length && segments[segmentIndex]) {
-          setCallSegments(prev => [...prev, segments[segmentIndex]]);
-          segmentIndex++;
-          setActiveSegmentIndex(segmentIndex);
+        if (i < segments.length) {
+          setCallSegments(prev => [...prev, segments[i]]);
+          i++;
+          setActiveSegmentIndex(i);
         } else {
           clearInterval(interval);
           setCallState('completed');
-          setConfirmationNumber(webhookResult.callResult.confirmation_number);
-          
-          // Step 5: Trigger Tracking Plan Retrieval
-          retrieveTrackingPlan(webhookResult.callResult);
+          setConfirmationNumber(finalResult.confirmation_number);
+          retrieveTrackingPlan(finalResult);
         }
-      }, 2500); // Display segment every 2.5s
-
+      }, 1000);
       (window as any).__dialInterval = interval;
     } catch (err) {
-      console.error(err);
+      console.error('Call flow failed:', err);
       setCallState('failed');
     }
   };
@@ -772,7 +806,7 @@ export default function Home() {
                       <div className="text-xs">
                         <div className="font-semibold text-slate-200">Outbound Appeal Dial</div>
                         <div className="text-slate-400 font-mono text-[10px]">
-                          Dialing {intakeData?.data.contact_phone || '800-333-0633'}
+                          Dialing Aetna appeals representative · agent voicing the Gemini-written script
                         </div>
                       </div>
                     </div>
