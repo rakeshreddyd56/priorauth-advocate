@@ -1,0 +1,219 @@
+{
+  "name": "PriorAuth Advocate · Tracking",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "priorauth-call-result",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook · CallResult from PriorAuth backend",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "priorauth-call-result"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate CallResult payload shape\nconst body = $input.first().json.body || $input.first().json;\nconst missing = ['conversation_id', 'confirmation_number', 'status', 'transcript_segments'].filter(k => body[k] === undefined);\n\nif (missing.length > 0) {\n  throw new Error(`CallResult missing required fields: ${missing.join(', ')}`);\n}\n\n// Normalize\nconst now = new Date();\nconst day = (n) => new Date(now.getTime() + n * 86400000).toISOString();\n\nreturn [{ json: {\n  run_id: body.conversation_id,\n  call_sid: body.call_sid,\n  confirmation_number: body.confirmation_number,\n  status: body.status,\n  duration_sec: body.duration_sec ?? 0,\n  filed_at_iso: now.toISOString(),\n  patient_initials: body.patient_initials || 'R. R.',\n  member_id_last4: body.member_id_last4 || '5821',\n  service_or_drug: body.service_or_drug || 'Humira (adalimumab)',\n  insurer: body.insurer || 'Aetna',\n  policy_id: body.policy_id || 'AETNA-CPB-0341',\n  appeal_deadline_iso: body.appeal_deadline_iso || day(180),\n  followups: [\n    { at_iso: day(5),  task: 'status_call',     owner: 'n8n',  status: 'scheduled' },\n    { at_iso: day(14), task: 'fax_refile',      owner: 'n8n',  status: 'scheduled' },\n    { at_iso: day(30), task: 'state_complaint', owner: 'user', status: 'waiting' }\n  ],\n  escalation_ready: {\n    state_complaint: true,\n    external_review_packet: false\n  }\n} }];"
+      },
+      "id": "validate-build-plan",
+      "name": "Build TrackingPlan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PRIORAUTH_BACKEND_URL }}/api/tracking/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "post-plan-to-backend",
+      "name": "POST TrackingPlan → PriorAuth backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@priorauth.app",
+        "toEmail": "={{ $('Webhook · CallResult from PriorAuth backend').first().json.body.patient_email || 'rakeshreddyd56@gmail.com' }}",
+        "subject": "=Appeal filed · {{ $('Build TrackingPlan').first().json.insurer }} · {{ $('Build TrackingPlan').first().json.confirmation_number }}",
+        "html": "=<div style=\"font-family: Charter, Georgia, serif; max-width: 640px; margin: 0 auto; padding: 24px; background: #FAF8F3; color: #1F2421;\">\n  <h1 style=\"font-size: 26px; font-weight: 500; margin-bottom: 8px;\">Appeal filed with {{ $json.insurer }}</h1>\n  <p style=\"font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #87877F; margin-bottom: 24px;\">Confirmation · {{ $json.confirmation_number }}</p>\n\n  <table style=\"width: 100%; border-collapse: collapse; margin-bottom: 24px;\">\n    <tr><td style=\"padding: 6px 0; color: #87877F; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;\">Patient</td><td style=\"padding: 6px 0;\">{{ $json.patient_initials }} · member ending {{ $json.member_id_last4 }}</td></tr>\n    <tr><td style=\"padding: 6px 0; color: #87877F; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;\">Service</td><td style=\"padding: 6px 0;\">{{ $json.service_or_drug }}</td></tr>\n    <tr><td style=\"padding: 6px 0; color: #87877F; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;\">Cited policy</td><td style=\"padding: 6px 0;\">{{ $json.policy_id }}</td></tr>\n    <tr><td style=\"padding: 6px 0; color: #87877F; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;\">Filed</td><td style=\"padding: 6px 0;\">{{ $json.filed_at_iso }}</td></tr>\n    <tr><td style=\"padding: 6px 0; color: #87877F; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;\">Appeal deadline</td><td style=\"padding: 6px 0;\">{{ $json.appeal_deadline_iso }}</td></tr>\n  </table>\n\n  <h2 style=\"font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #87877F; margin-top: 24px;\">Scheduled follow-ups</h2>\n  <ul style=\"list-style: none; padding: 0; margin: 8px 0 24px;\">\n    {{ $json.followups.map(f => `<li style=\"padding: 8px 0; border-bottom: 1px solid rgba(31,36,33,0.08);\"><strong style=\"color: #1F4D2E;\">${new Date(f.at_iso).toLocaleDateString()}</strong> · ${f.task.replace(/_/g, ' ')} · ${f.status} (${f.owner})</li>`).join('') }}\n  </ul>\n\n  <p style=\"font-size: 11px; color: #87877F; border-top: 1px solid rgba(31,36,33,0.16); padding-top: 12px;\">Administrative advocacy. Not medical advice. Tracking handled by n8n; AI-drafted appeal by Gemini 3.5 Flash; voice call captured by ElevenLabs.</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-status-email",
+      "name": "Send appeal-filed email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [860, 220],
+      "credentials": {
+        "smtp": { "id": "smtp-credential", "name": "Gmail SMTP" }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "days"
+      },
+      "id": "wait-day-5",
+      "name": "Wait until Day 5",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [860, 380],
+      "webhookId": "priorauth-day5-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PRIORAUTH_BACKEND_URL }}/api/tracking/check-status",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"run_id\": \"{{ $('Build TrackingPlan').first().json.run_id }}\", \"checkpoint\": \"day_5_status_call\" }"
+      },
+      "id": "day-5-status-check",
+      "name": "Day 5 · status call check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1080, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "still-pending",
+              "leftValue": "={{ $json.appeal_status }}",
+              "rightValue": "pending",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-still-pending",
+      "name": "Still pending at Day 5?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1300, 380]
+    },
+    {
+      "parameters": {
+        "amount": 9,
+        "unit": "days"
+      },
+      "id": "wait-to-day-14",
+      "name": "Wait to Day 14",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1520, 380],
+      "webhookId": "priorauth-day14-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PRIORAUTH_BACKEND_URL }}/api/tracking/refile",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"run_id\": \"{{ $('Build TrackingPlan').first().json.run_id }}\", \"action\": \"fax_refile\" }"
+      },
+      "id": "day-14-refile",
+      "name": "Day 14 · refile via fax",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1740, 380]
+    },
+    {
+      "parameters": {
+        "amount": 16,
+        "unit": "days"
+      },
+      "id": "wait-to-day-30",
+      "name": "Wait to Day 30",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1960, 380],
+      "webhookId": "priorauth-day30-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PRIORAUTH_BACKEND_URL }}/api/tracking/escalate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"run_id\": \"{{ $('Build TrackingPlan').first().json.run_id }}\", \"action\": \"state_doi_complaint\", \"escalation_target\": \"CA Department of Insurance\" }"
+      },
+      "id": "day-30-state-complaint",
+      "name": "Day 30 · file state DOI complaint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2180, 380]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('Build TrackingPlan').first().json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond with TrackingPlan",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 480]
+    }
+  ],
+  "connections": {
+    "Webhook · CallResult from PriorAuth backend": {
+      "main": [[{ "node": "Build TrackingPlan", "type": "main", "index": 0 }]]
+    },
+    "Build TrackingPlan": {
+      "main": [[{ "node": "POST TrackingPlan → PriorAuth backend", "type": "main", "index": 0 }]]
+    },
+    "POST TrackingPlan → PriorAuth backend": {
+      "main": [[
+        { "node": "Send appeal-filed email", "type": "main", "index": 0 },
+        { "node": "Wait until Day 5", "type": "main", "index": 0 },
+        { "node": "Respond with TrackingPlan", "type": "main", "index": 0 }
+      ]]
+    },
+    "Wait until Day 5": {
+      "main": [[{ "node": "Day 5 · status call check", "type": "main", "index": 0 }]]
+    },
+    "Day 5 · status call check": {
+      "main": [[{ "node": "Still pending at Day 5?", "type": "main", "index": 0 }]]
+    },
+    "Still pending at Day 5?": {
+      "main": [
+        [{ "node": "Wait to Day 14", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Wait to Day 14": {
+      "main": [[{ "node": "Day 14 · refile via fax", "type": "main", "index": 0 }]]
+    },
+    "Day 14 · refile via fax": {
+      "main": [[{ "node": "Wait to Day 30", "type": "main", "index": 0 }]]
+    },
+    "Wait to Day 30": {
+      "main": [[{ "node": "Day 30 · file state DOI complaint", "type": "main", "index": 0 }]]
+    }
+  },
+  "tags": [
+    { "name": "priorauth-advocate" },
+    { "name": "hackathon" }
+  ]
+}

@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="Charter, 'Iowan Old Style', Georgia, serif">
+  <rect width="1600" height="900" fill="#FAF8F3"/>
+
+  <!-- Top label -->
+  <text x="80" y="80" font-size="20" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="4" text-transform="uppercase">SYSTEM ARCHITECTURE</text>
+  <text x="80" y="135" font-size="42" fill="#1F2421" font-weight="500">Gemini thinks. ElevenLabs speaks. n8n remembers.</text>
+
+  <!-- ── Top tier: USER + UI ───────────────────────────────── -->
+  <g transform="translate(80,200)">
+    <text x="0" y="0" font-size="11" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">USER · DASHBOARD</text>
+    <rect x="0" y="15" width="220" height="80" fill="white" stroke="#1F2421" stroke-width="1"/>
+    <text x="14" y="48" font-size="17" fill="#1F2421">Patient (Rakesh)</text>
+    <text x="14" y="72" font-size="12" font-family="Inter, sans-serif" fill="#4A4F4B">Snaps photo · clicks button</text>
+  </g>
+
+  <g transform="translate(380,200)">
+    <text x="0" y="0" font-size="11" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">FRONTEND</text>
+    <rect x="0" y="15" width="240" height="80" fill="white" stroke="#1F2421" stroke-width="1"/>
+    <text x="14" y="48" font-size="17" fill="#1F2421">Next.js 16 · Dashboard</text>
+    <text x="14" y="72" font-size="12" font-family="Inter, sans-serif" fill="#4A4F4B">Vercel · 6-lane UI · SSE</text>
+  </g>
+
+  <!-- Arrow user → frontend -->
+  <line x1="300" y1="255" x2="380" y2="255" stroke="#1F2421" stroke-width="1"/>
+  <polygon points="378,251 386,255 378,259" fill="#1F2421"/>
+
+  <!-- Arrow frontend → orchestrator -->
+  <line x1="500" y1="295" x2="500" y2="370" stroke="#1F2421" stroke-width="1"/>
+  <polygon points="496,368 500,376 504,368" fill="#1F2421"/>
+
+  <!-- ── Mid tier: ORCHESTRATOR ─────────────────────────────── -->
+  <g transform="translate(380,390)">
+    <text x="0" y="0" font-size="11" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">ORCHESTRATOR · CLOUD RUN</text>
+    <rect x="0" y="15" width="240" height="80" fill="#F2EFE7" stroke="#1F4D2E" stroke-width="1.5"/>
+    <text x="14" y="48" font-size="17" fill="#1F4D2E" font-weight="500">Gemini 3.5 Flash Planner</text>
+    <text x="14" y="72" font-size="12" font-family="Inter, sans-serif" fill="#4A4F4B">Strict Zod schemas · parallel fan-out</text>
+  </g>
+
+  <!-- Fan-out arrows -->
+  <line x1="380" y1="500" x2="200" y2="555" stroke="#1F4D2E" stroke-width="1"/>
+  <line x1="500" y1="500" x2="500" y2="555" stroke="#1F4D2E" stroke-width="1"/>
+  <line x1="620" y1="500" x2="800" y2="555" stroke="#1F4D2E" stroke-width="1"/>
+  <line x1="500" y1="500" x2="1100" y2="555" stroke="#1F4D2E" stroke-width="1"/>
+  <line x1="500" y1="500" x2="1400" y2="555" stroke="#1F4D2E" stroke-width="1"/>
+
+  <!-- ── Agent tier (5 sub-agents) ─────────────────────────── -->
+  <g transform="translate(80,555)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">① INTAKE</text>
+    <rect x="0" y="10" width="220" height="60" fill="white" stroke="#1F4D2E" stroke-width="1"/>
+    <text x="14" y="36" font-size="14" fill="#1F2421">Gemini 3.5 Flash · Vision</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">Photo → DenialLetter JSON</text>
+  </g>
+
+  <g transform="translate(380,555)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">② POLICY</text>
+    <rect x="0" y="10" width="240" height="60" fill="white" stroke="#1F4D2E" stroke-width="1"/>
+    <text x="14" y="36" font-size="14" fill="#1F2421">Gemini 3.5 Flash · RAG</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">cheerio + Aetna corpus · PolicyMatch</text>
+  </g>
+
+  <g transform="translate(680,555)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">③ CLINICAL EVIDENCE</text>
+    <rect x="0" y="10" width="240" height="60" fill="white" stroke="#1F4D2E" stroke-width="1.5"/>
+    <text x="14" y="36" font-size="14" fill="#1F4D2E" font-weight="500">Cloud Healthcare API</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">FHIR R4 · synthetic R. R. record</text>
+  </g>
+
+  <g transform="translate(980,555)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">④ DRAFTING</text>
+    <rect x="0" y="10" width="240" height="60" fill="white" stroke="#1F4D2E" stroke-width="1"/>
+    <text x="14" y="36" font-size="14" fill="#1F2421">Gemini 3.5 Flash · JSON</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">AppealLetter + win-prob</text>
+  </g>
+
+  <g transform="translate(1280,555)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">⑤ VOICE PREP</text>
+    <rect x="0" y="10" width="220" height="60" fill="white" stroke="#1F4D2E" stroke-width="1"/>
+    <text x="14" y="36" font-size="14" fill="#1F2421">Gemini 3.5 Flash</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">VoiceScript JSON</text>
+  </g>
+
+  <!-- Arrows from voice prep to ElevenLabs -->
+  <line x1="1390" y1="625" x2="1390" y2="700" stroke="#1F4D2E" stroke-width="1.5"/>
+  <polygon points="1386,698 1390,706 1394,698" fill="#1F4D2E"/>
+
+  <!-- ── Voice execution + tracking tier ───────────────────── -->
+  <g transform="translate(1280,720)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">⑥ VOICE EXECUTION</text>
+    <rect x="0" y="10" width="220" height="60" fill="#F2EFE7" stroke="#8B2E2A" stroke-width="1.5"/>
+    <text x="14" y="36" font-size="14" fill="#8B2E2A" font-weight="500">ElevenLabs CAI · Browser</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">+ Twilio (production phone)</text>
+  </g>
+
+  <!-- Arrow ElevenLabs → n8n -->
+  <line x1="1280" y1="755" x2="1080" y2="755" stroke="#1F4D2E" stroke-width="1"/>
+  <polygon points="1082,751 1074,755 1082,759" fill="#1F4D2E"/>
+  <text x="1100" y="745" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="1">webhook · CallResult</text>
+
+  <g transform="translate(840,720)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">⑦ TRACKING</text>
+    <rect x="0" y="10" width="240" height="60" fill="#F2EFE7" stroke="#1F4D2E" stroke-width="1.5"/>
+    <text x="14" y="36" font-size="14" fill="#1F4D2E" font-weight="500">n8n · durable workflow</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">Day 5 / 14 / 30 follow-ups</text>
+  </g>
+
+  <!-- Tracking outputs -->
+  <line x1="900" y1="780" x2="900" y2="830" stroke="#1F4D2E" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="450" y="820" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">→ IRO escalation packet · State DOI complaint · Email status updates</text>
+
+  <!-- ── Side: Auth & infra ───────────────────────────────── -->
+  <g transform="translate(80,720)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">AUTH</text>
+    <rect x="0" y="10" width="220" height="60" fill="white" stroke="#1F2421" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="14" y="36" font-size="13" fill="#1F2421">Application Default Credentials</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">No static SA keys · org policy compliant</text>
+  </g>
+
+  <g transform="translate(380,720)">
+    <text x="0" y="0" font-size="10" font-family="Inter, sans-serif" fill="#87877F" letter-spacing="2">CONTRACTS</text>
+    <rect x="0" y="10" width="380" height="60" fill="white" stroke="#1F2421" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="14" y="36" font-size="13" fill="#1F2421">Zod schemas at every lane boundary</text>
+    <text x="14" y="54" font-size="11" font-family="Inter, sans-serif" fill="#4A4F4B">DenialLetter · PolicyMatch · AppealLetter · VoiceScript · CallResult · TrackingPlan</text>
+  </g>
+
+  <!-- Footer rule -->
+  <line x1="80" y1="858" x2="1520" y2="858" stroke="#1F2421" stroke-width="1"/>
+  <text x="80" y="880" font-size="13" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3">PRIORAUTH ADVOCATE · ARCHITECTURE</text>
+  <text x="1520" y="880" font-size="13" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3" text-anchor="end">GOOGLE I/O HACKATHON · MAY 2026</text>
+</svg>

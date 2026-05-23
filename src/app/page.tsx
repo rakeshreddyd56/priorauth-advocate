@@ -21,6 +21,7 @@ export default function HomeWrapper() {
 
 function Home() {
   // Input states
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pitch' | 'architecture'>('dashboard');
   const [denialText, setDenialText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -408,17 +409,79 @@ function Home() {
               <div className="pa-label" style={{ marginTop: '0.2rem', letterSpacing: '0.12em' }}>Administrative advocacy · not medical advice</div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--pa-ink-3)' }}>
-            <span>Gemini 3.5 Flash</span>
-            <span>·</span>
-            <span>Cloud Healthcare FHIR R4</span>
-            <span>·</span>
-            <span>ElevenLabs voice</span>
-            <span>·</span>
-            <span style={{ color: 'var(--pa-accent)' }}>● Live</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {(['dashboard', 'pitch', 'architecture'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '0.45rem 0.95rem',
+                  background: activeTab === tab ? 'var(--pa-ink)' : 'transparent',
+                  color: activeTab === tab ? 'var(--pa-bg)' : 'var(--pa-ink-2)',
+                  border: '1px solid ' + (activeTab === tab ? 'var(--pa-ink)' : 'var(--pa-rule-soft)'),
+                  fontSize: '0.78rem',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {tab === 'dashboard' && '01 Demo'}
+                {tab === 'pitch' && '02 Pitch'}
+                {tab === 'architecture' && '03 Architecture'}
+              </button>
+            ))}
+            <div style={{ marginLeft: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--pa-accent)' }}>● Live</div>
           </div>
         </div>
       </header>
+
+      {/* ─── Pitch tab — embedded deck ─── */}
+      {activeTab === 'pitch' && (
+        <div style={{ height: 'calc(100vh - 64px)' }}>
+          <iframe
+            src="/deck.html"
+            style={{ width: '100%', height: '100%', border: 0 }}
+            title="PriorAuth Advocate Pitch Deck"
+          />
+        </div>
+      )}
+
+      {/* ─── Architecture tab — system diagram ─── */}
+      {activeTab === 'architecture' && (
+        <div style={{ minHeight: 'calc(100vh - 64px)', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ maxWidth: '1440px', width: '100%' }}>
+            <div className="pa-label" style={{ marginBottom: '0.5rem' }}>03 · System architecture</div>
+            <h1 className="pa-serif" style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Gemini thinks. ElevenLabs speaks. n8n remembers.</h1>
+          </div>
+          <div style={{ maxWidth: '1440px', width: '100%', background: 'white', border: '1px solid var(--pa-rule-soft)', padding: '0.5rem' }}>
+            <img src="/architecture.svg" alt="PriorAuth Advocate Architecture" style={{ width: '100%', display: 'block' }} />
+          </div>
+          <div style={{ maxWidth: '1100px', width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            <div className="pa-card-tight">
+              <div className="pa-label" style={{ marginBottom: '0.4rem' }}>The brain</div>
+              <div className="pa-serif" style={{ fontSize: '1.15rem', marginBottom: '0.4rem' }}>Gemini 3.5 Flash</div>
+              <p style={{ fontSize: '0.84rem', lineHeight: 1.5, color: 'var(--pa-ink-2)' }}>5 sub-agents on Google managed-agent infrastructure. Strict Zod schemas at every lane boundary. Parallel fan-out: Policy ∥ Clinical Evidence.</p>
+            </div>
+            <div className="pa-card-tight">
+              <div className="pa-label" style={{ marginBottom: '0.4rem' }}>The mouth</div>
+              <div className="pa-serif" style={{ fontSize: '1.15rem', marginBottom: '0.4rem' }}>ElevenLabs Conversational AI</div>
+              <p style={{ fontSize: '0.84rem', lineHeight: 1.5, color: 'var(--pa-ink-2)' }}>Browser SDK for stage demo. Twilio outbound calling for production. Sub-second turn-taking, interruption-safe, post-call webhook capture.</p>
+            </div>
+            <div className="pa-card-tight">
+              <div className="pa-label" style={{ marginBottom: '0.4rem' }}>The memory</div>
+              <div className="pa-serif" style={{ fontSize: '1.15rem', marginBottom: '0.4rem' }}>n8n durable workflow</div>
+              <p style={{ fontSize: '0.84rem', lineHeight: 1.5, color: 'var(--pa-ink-2)' }}>Receives CallResult webhook → schedules Day 5 / 14 / 30 follow-ups. Auto-drafts IRO escalation packets and State DOI complaints if denied again.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Dashboard tab — only render when active ─── */}
+      {activeTab === 'dashboard' && (
+        <>
 
       {/* ── Main grid ───────────────────────────────────────────────── */}
       <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '2rem', display: 'grid', gridTemplateColumns: '1fr 1.05fr 1.2fr', gap: '1.5rem' }}>
@@ -786,6 +849,8 @@ function Home() {
           )}
         </section>
       </main>
+      </>
+      )}
 
       {/* ── Footer ─────────────────────────────────────────────────── */}
       <footer style={{ borderTop: '1px solid var(--pa-rule-soft)', marginTop: '2rem', background: 'var(--pa-bg)' }}>

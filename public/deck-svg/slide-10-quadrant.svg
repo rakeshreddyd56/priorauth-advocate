@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="Charter, 'Iowan Old Style', Georgia, serif">
+  <rect width="1600" height="900" fill="#FAF8F3"/>
+
+  <text x="120" y="100" font-size="22" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="4">WHAT NO ONE HAS SHIPPED</text>
+  <text x="120" y="170" font-size="60" fill="#1F2421" font-weight="500">Every AI in prior auth today</text>
+  <text x="120" y="240" font-size="60" fill="#1F2421" font-weight="500">is on the wrong side of the patient.</text>
+
+  <!-- quadrant -->
+  <g transform="translate(160,330)">
+    <!-- frame -->
+    <rect x="0" y="0" width="700" height="500" fill="none" stroke="none"/>
+    <!-- axes -->
+    <line x1="0" y1="250" x2="700" y2="250" stroke="#1F2421" stroke-width="1.5"/>
+    <line x1="350" y1="0" x2="350" y2="500" stroke="#1F2421" stroke-width="1.5"/>
+
+    <!-- axis labels -->
+    <text x="350" y="-15" text-anchor="middle" font-size="16" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3">FILES &amp; FOLLOWS THROUGH</text>
+    <text x="350" y="525" text-anchor="middle" font-size="16" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3">DRAFTS &amp; COACHES</text>
+    <text x="-30" y="250" text-anchor="middle" font-size="16" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3" transform="rotate(-90, -30, 250)">PATIENT-SIDE</text>
+    <text x="730" y="250" text-anchor="middle" font-size="16" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3" transform="rotate(90, 730, 250)">PAYER-SIDE</text>
+
+    <!-- top-left: us, alone -->
+    <text x="100" y="100" font-size="26" fill="#1F4D2E" font-weight="600">★ PriorAuth Advocate</text>
+
+    <!-- top-right: payer + automated -->
+    <text x="430" y="60" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Cohere Health</text>
+    <text x="430" y="95" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• eviCore (Cigna)</text>
+    <text x="430" y="130" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Carelon (Elevance)</text>
+    <text x="430" y="165" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Optum Humata</text>
+
+    <!-- patient-side, drafts + voice coaching (Counterforce, partial) -->
+    <text x="40" y="225" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Counterforce + Maxwell</text>
+
+    <!-- bottom-left: patient + letter only -->
+    <text x="40" y="340" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Claimable</text>
+    <text x="40" y="375" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Fight Health Insurance</text>
+
+    <!-- bottom-right: payer + letter only -->
+    <text x="430" y="340" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Availity</text>
+    <text x="430" y="375" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Banjo Health</text>
+    <text x="430" y="410" font-size="18" fill="#1F2421" font-family="Inter, sans-serif">• Myndshft</text>
+  </g>
+
+  <!-- right-side takeaway -->
+  <g transform="translate(1000,400)">
+    <text x="0" y="0" font-size="32" fill="#1F2421" font-weight="500">Counterforce drafts and</text>
+    <text x="0" y="42" font-size="32" fill="#1F2421" font-weight="500"><tspan font-style="italic">coaches</tspan> you through the call.</text>
+    <text x="0" y="110" font-size="32" fill="#1F2421" font-weight="500">Payer-side tools</text>
+    <text x="0" y="152" font-size="32" fill="#1F2421" font-weight="500"><tspan fill="#1F4D2E">are the denial.</tspan></text>
+    <text x="0" y="230" font-size="32" fill="#1F2421" font-weight="500">We're the only one that</text>
+    <text x="0" y="272" font-size="32" fill="#1F2421" font-weight="500"><tspan fill="#1F4D2E">makes the call</tspan> — and keeps</text>
+    <text x="0" y="314" font-size="32" fill="#1F2421" font-weight="500">fighting for 60 days after it.</text>
+  </g>
+
+  <line x1="120" y1="858" x2="1480" y2="858" stroke="#1F2421" stroke-width="1"/>
+  <text x="120" y="880" font-size="14" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3">10 / 12</text>
+  <text x="1480" y="880" font-size="14" font-family="Inter, sans-serif" fill="#4A4F4B" letter-spacing="3" text-anchor="end">THE WEDGE</text>
+</svg>

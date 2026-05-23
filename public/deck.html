@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PriorAuth Advocate — Google I/O Hackathon</title>
+<style>
+  :root {
+    --bg: #FAF8F3;
+    --ink: #1F2421;
+    --ink-soft: #4A4F4B;
+    --accent: #1F4D2E;
+    --accent-soft: #C8D6CC;
+    --paper: #F2EFE7;
+    --rule: #1F2421;
+    --red: #8B2E2A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; background: var(--bg); color: var(--ink); font-family: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  .deck { position: relative; height: 100vh; width: 100vw; }
+  .slide { position: absolute; inset: 0; padding: 6vh 8vw; display: none; flex-direction: column; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+  .slide.active { display: flex; opacity: 1; }
+  .slide.title-only { justify-content: center; align-items: center; text-align: center; }
+
+  /* typography */
+  .serif { font-family: "Charter", "Iowan Old Style", "Georgia", serif; }
+  .label { font-size: 0.85rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; margin-bottom: 2.2vh; }
+  h1 { font-family: "Charter", "Iowan Old Style", "Georgia", serif; font-weight: 500; font-size: 5.5rem; line-height: 1.05; letter-spacing: -0.015em; }
+  h1.small { font-size: 4rem; }
+  h2 { font-family: "Charter", "Iowan Old Style", "Georgia", serif; font-weight: 500; font-size: 3rem; line-height: 1.15; letter-spacing: -0.01em; }
+  .body { font-size: 1.35rem; line-height: 1.55; max-width: 50ch; color: var(--ink-soft); margin-top: 3vh; }
+  .body strong { color: var(--ink); font-weight: 600; }
+  .footnote { font-size: 0.78rem; color: var(--ink-soft); letter-spacing: 0.02em; margin-top: 6vh; max-width: 60ch; line-height: 1.5; }
+  .footnote em { font-style: italic; color: var(--ink); }
+  .footer-rule { position: absolute; left: 8vw; right: 8vw; bottom: 4vh; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--ink-soft); letter-spacing: 0.12em; text-transform: uppercase; padding-top: 1.4vh; border-top: 1px solid var(--rule); }
+
+  /* slide 1 — title */
+  .s1 .mark { width: 8vh; height: 8vh; border: 2px solid var(--accent); border-radius: 50%; margin-bottom: 4vh; display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: "Charter", serif; font-size: 4vh; }
+  .s1 .tagline { font-size: 1.5rem; color: var(--ink-soft); margin-top: 3vh; max-width: 28ch; }
+
+  /* slide 2 — the number */
+  .s2 { justify-content: center; align-items: center; text-align: center; }
+  .s2 .giant { font-family: "Charter", serif; font-size: 18rem; line-height: 0.95; letter-spacing: -0.04em; color: var(--ink); }
+  .s2 .giant small { font-size: 6rem; vertical-align: super; color: var(--ink-soft); margin-left: 0.5rem; }
+  .s2 h2 { margin-top: 2vh; }
+
+  /* slide 3 — costs */
+  .cost-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4vw; margin-top: 5vh; }
+  .cost-cell { padding: 4vh 0 0 0; border-top: 2px solid var(--ink); }
+  .cost-cell .stat { font-family: "Charter", serif; font-size: 5rem; line-height: 1; color: var(--ink); }
+  .cost-cell .stat small { font-size: 2rem; vertical-align: super; }
+  .cost-cell .descr { margin-top: 2vh; font-size: 1.05rem; color: var(--ink-soft); line-height: 1.4; max-width: 22ch; }
+  .cost-cell .src { font-size: 0.7rem; color: var(--ink-soft); margin-top: 2vh; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* slide 4 — meet Rakesh */
+  .rakesh { display: grid; grid-template-columns: 1.1fr 1fr; gap: 5vw; align-items: center; }
+  .rakesh .diagram { background: var(--paper); padding: 4vh 3vw; border-left: 4px solid var(--accent); }
+  .rakesh .diagram h3 { font-family: "Charter", serif; font-weight: 500; font-size: 1.1rem; color: var(--ink-soft); letter-spacing: 0.04em; margin-bottom: 3vh; }
+  .flow { display: flex; flex-direction: column; gap: 1.6vh; }
+  .flow .step { display: grid; grid-template-columns: 2.5rem 1fr; gap: 0.8rem; align-items: baseline; }
+  .flow .step .n { font-family: "Charter", serif; color: var(--accent); font-weight: 500; }
+  .flow .step .t { font-size: 1rem; line-height: 1.35; }
+  .flow .step .t em { font-style: normal; background: #FAE8E5; padding: 0 0.3em; }
+  .flow .stamp { display: inline-block; border: 2px solid var(--red); color: var(--red); font-weight: 700; padding: 0.3em 0.7em; transform: rotate(-3deg); font-size: 0.85rem; letter-spacing: 0.1em; margin-top: 1vh; }
+
+  /* slide 5 — timeline */
+  .timeline { margin-top: 5vh; position: relative; padding-bottom: 8vh; }
+  .timeline .track { position: relative; height: 4px; background: var(--ink); margin: 7vh 2vw 0; }
+  .timeline .tick { position: absolute; top: -1vh; width: 2px; height: 3vh; background: var(--ink); }
+  .timeline .tick .lbl { position: absolute; top: 4vh; left: 50%; transform: translateX(-50%); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+  .timeline .tick .ev { position: absolute; bottom: 4vh; left: 50%; transform: translateX(-50%); font-size: 0.95rem; max-width: 14ch; text-align: center; line-height: 1.25; color: var(--ink); }
+  .timeline .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; margin-top: 10vh; }
+  .timeline .summary .cell .n { font-family: "Charter", serif; font-size: 3rem; color: var(--accent); }
+  .timeline .summary .cell .l { font-size: 0.95rem; color: var(--ink-soft); margin-top: 1vh; max-width: 22ch; line-height: 1.35; }
+
+  /* slide 6 — asymmetry */
+  .s6 { padding-top: 8vh; }
+  .s6 .courthouse { margin-top: 4vh; }
+  .s6 .bar-row { display: grid; grid-template-columns: 18ch 1fr 7ch; gap: 2vw; align-items: center; margin-bottom: 3vh; }
+  .s6 .bar-row .lab { font-family: "Charter", serif; font-size: 1.6rem; color: var(--ink); }
+  .s6 .bar-row .sub { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.4vh; }
+  .s6 .bar { height: 9vh; background: var(--accent); position: relative; }
+  .s6 .bar.tiny { background: var(--accent); width: 1%; }
+  .s6 .bar.big { width: 82%; }
+  .s6 .pct { font-family: "Charter", serif; font-size: 3.2rem; color: var(--ink); text-align: right; }
+  .s6 .gap-arrow { margin: 4vh 0 0 18ch; padding-left: 2vw; border-left: 2px dashed var(--ink-soft); padding-top: 1vh; padding-bottom: 1vh; font-size: 1.1rem; color: var(--ink); font-style: italic; }
+
+  /* slide 7 — architecture */
+  .arch { margin-top: 5vh; display: grid; grid-template-columns: 1fr; gap: 0; }
+  .arch .row { display: grid; grid-template-columns: 8rem 1fr; gap: 2vw; padding: 2.2vh 0; border-top: 1px solid var(--rule); align-items: center; }
+  .arch .row:last-child { border-bottom: 1px solid var(--rule); }
+  .arch .row .who { font-family: "Charter", serif; font-size: 1.4rem; color: var(--accent); font-weight: 500; }
+  .arch .row .what { font-size: 1.1rem; color: var(--ink); }
+  .arch .row .what small { color: var(--ink-soft); font-size: 0.85rem; display: block; margin-top: 0.3vh; }
+  .arch .summary { margin-top: 5vh; font-family: "Charter", serif; font-size: 2rem; line-height: 1.3; max-width: 32ch; }
+
+  /* slide 8 — demo cue */
+  .s8 { justify-content: center; align-items: center; text-align: center; }
+  .s8 h1 { font-size: 7rem; max-width: 22ch; }
+  .s8 .hint { margin-top: 6vh; font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); }
+
+  /* slide 9 — why now */
+  .stack { margin-top: 4vh; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3vw; }
+  .stack .col { padding: 4vh 1.5vw; border-top: 3px solid var(--accent); }
+  .stack .col h3 { font-family: "Charter", serif; font-size: 2rem; font-weight: 500; margin-bottom: 2vh; }
+  .stack .col .role { font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 2.5vh; }
+  .stack .col p { font-size: 1rem; color: var(--ink); line-height: 1.5; }
+  .s9 .closer { margin-top: 5vh; font-family: "Charter", serif; font-size: 1.4rem; color: var(--ink-soft); max-width: 60ch; }
+  .s9 .powered-by { margin-top: 3vh; font-size: 0.72rem; color: var(--ink-soft); letter-spacing: 0.04em; line-height: 1.7; max-width: 95ch; padding-top: 1.6vh; border-top: 1px solid var(--rule); }
+
+  /* slide 10 — quadrant */
+  .quad-wrap { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 4vw; align-items: center; margin-top: 4vh; }
+  .quad { position: relative; aspect-ratio: 1.05/1; }
+  .quad .axes { position: absolute; inset: 0; }
+  .quad .ax { position: absolute; background: var(--ink); }
+  .quad .ax.h { left: 5%; right: 5%; top: 50%; height: 1px; }
+  .quad .ax.v { top: 5%; bottom: 5%; left: 50%; width: 1px; }
+  .quad .lbl { position: absolute; font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft); }
+  .quad .lbl.top { top: -1vh; left: 50%; transform: translateX(-50%); }
+  .quad .lbl.bottom { bottom: -3vh; left: 50%; transform: translateX(-50%); }
+  .quad .lbl.left { left: -2vw; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+  .quad .lbl.right { right: -2vw; top: 50%; transform: translateY(-50%) rotate(90deg); }
+  .quad .pt { position: absolute; font-size: 0.9rem; color: var(--ink); white-space: nowrap; }
+  .quad .pt::before { content: "•"; color: var(--ink); margin-right: 0.3rem; }
+  .quad .pt.us { color: var(--accent); font-weight: 600; font-size: 1.05rem; }
+  .quad .pt.us::before { color: var(--accent); content: "★"; }
+  .quad-wrap .takeaway { font-family: "Charter", serif; font-size: 1.6rem; line-height: 1.35; }
+  .quad-wrap .takeaway strong { color: var(--accent); }
+
+  /* slide 11 — impact */
+  .s11 { justify-content: center; align-items: flex-start; }
+  .impact { margin-top: 3vh; display: grid; grid-template-columns: auto 1fr; gap: 4vw; align-items: center; }
+  .impact .num { font-family: "Charter", serif; font-size: 14rem; line-height: 0.9; color: var(--accent); letter-spacing: -0.03em; }
+  .impact .num small { font-size: 4rem; color: var(--ink-soft); }
+  .impact .descr { font-family: "Charter", serif; font-size: 1.8rem; line-height: 1.35; color: var(--ink); max-width: 28ch; }
+  .impact .descr strong { color: var(--accent); }
+  .impact-math { margin-top: 6vh; font-family: "iA Writer Mono", "SF Mono", Menlo, monospace; font-size: 0.95rem; color: var(--ink-soft); }
+  .impact-math em { font-style: normal; color: var(--ink); }
+
+  /* slide 12 — close */
+  .s12 { justify-content: center; align-items: center; text-align: center; }
+  .s12 .quote { font-family: "Charter", serif; font-size: 4.5rem; line-height: 1.15; max-width: 22ch; letter-spacing: -0.01em; }
+  .s12 .quote em { font-style: italic; color: var(--accent); }
+  .s12 .meta { margin-top: 8vh; display: flex; gap: 4vw; font-size: 1rem; color: var(--ink-soft); letter-spacing: 0.15em; text-transform: uppercase; }
+
+  /* nav */
+  .nav { position: fixed; bottom: 1.5vh; right: 2vw; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft); display: flex; gap: 2vw; align-items: center; }
+  .nav .count { font-family: "Charter", serif; color: var(--ink); font-size: 0.9rem; }
+  .nav .key { border: 1px solid var(--ink-soft); padding: 0.2em 0.5em; font-size: 0.65rem; }
+
+  .disclaimer { position: fixed; bottom: 1.5vh; left: 2vw; font-size: 0.62rem; color: var(--ink-soft); letter-spacing: 0.08em; max-width: 60ch; line-height: 1.4; }
+
+  @media print { .slide { display: flex; opacity: 1; page-break-after: always; height: 100vh; } .nav, .disclaimer { display: none; } }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 — title -->
+  <section class="slide title-only s1" data-slide="1">
+    <div class="mark">P</div>
+    <div class="label">PriorAuth Advocate</div>
+    <h1 class="small serif">Insurance denied your care.<br/>We built an advocate that does not give up.</h1>
+    <p class="tagline">Google I/O Hackathon · Cerebral Valley · San Francisco · May 23 2026</p>
+    <div class="footer-rule"><span>01 / 12</span><span>Title</span></div>
+  </section>
+
+  <!-- 2 — the number -->
+  <section class="slide s2" data-slide="2">
+    <div class="label">The number</div>
+    <div class="giant">60M<small>/mo</small></div>
+    <h2 class="serif">Americans get a prior-authorization denial every month.<br/><span style="color:var(--ink-soft)">70% give up.</span></h2>
+    <p class="footnote">KFF Health Tracking Poll, January 2026, n=1,426 · AMA 2024 Prior Authorization Physician Survey, n=1,000</p>
+    <div class="footer-rule"><span>02 / 12</span><span>The number</span></div>
+  </section>
+
+  <!-- 3 — what it costs -->
+  <section class="slide s3" data-slide="3">
+    <div class="label">What it costs them</div>
+    <h2 class="serif">Prior authorization is the #1 non-cost burden in US healthcare.</h2>
+    <div class="cost-row">
+      <div class="cost-cell">
+        <div class="stat">82<small>%</small></div>
+        <div class="descr">of physicians report patients <strong>abandon treatment</strong> because of prior-auth hangups.</div>
+        <div class="src">AMA 2024</div>
+      </div>
+      <div class="cost-cell">
+        <div class="stat">29<small>%</small></div>
+        <div class="descr">of physicians have seen prior auth cause a <strong>serious adverse event</strong> — hospitalization, life-threatening, or death.</div>
+        <div class="src">AMA 2024</div>
+      </div>
+      <div class="cost-cell">
+        <div class="stat">47<small>%</small></div>
+        <div class="descr">of insured adults had care <strong>denied or delayed</strong> in the past 24 months. 57% of the chronically ill.</div>
+        <div class="src">KFF Jan 2026</div>
+      </div>
+    </div>
+    <div class="footer-rule"><span>03 / 12</span><span>The cost</span></div>
+  </section>
+
+  <!-- 4 — meet Rakesh -->
+  <section class="slide s4" data-slide="4">
+    <div class="label">A real fight</div>
+    <h2 class="serif">Meet Rakesh.</h2>
+    <p class="body">32 · Crohn's disease · Aetna PPO through his employer. His gastroenterologist prescribes <strong>Humira</strong>, the standard biologic. Aetna sends back a denial.</p>
+    <div class="rakesh" style="margin-top:5vh">
+      <div class="diagram">
+        <h3>What just happened</h3>
+        <div class="flow">
+          <div class="step"><span class="n">1</span><span class="t">Dr. Patel writes the prescription.</span></div>
+          <div class="step"><span class="n">2</span><span class="t">Her office faxes a prior-auth request to Aetna.</span></div>
+          <div class="step"><span class="n">3</span><span class="t">Aetna routes it to <strong>eviCore</strong>, a utilization-management vendor whose internal AI tool insiders call <em>"the dial."</em></span></div>
+          <div class="step"><span class="n">4</span><span class="t">"The dial" denies the request — azathioprine trial was 8 weeks; policy requires 12.</span></div>
+          <div class="step"><span class="n">5</span><span class="t">Rakesh receives a 4-page letter in CPT codes.</span></div>
+        </div>
+        <span class="stamp">DENIED</span>
+      </div>
+      <div>
+        <p class="body" style="max-width:36ch">The denial does not tell him that <strong>82% of appealed Medicare Advantage denials get overturned</strong>. Or that external review exists. Or that he has 180 days.</p>
+        <p class="footnote" style="margin-top:3vh">ProPublica / Capitol Forum, October 23 2024 — "the dial" disclosure.</p>
+      </div>
+    </div>
+    <div class="footer-rule"><span>04 / 12</span><span>Rakesh</span></div>
+  </section>
+
+  <!-- 5 — timeline -->
+  <section class="slide s5" data-slide="5">
+    <div class="label">What Rakesh does today</div>
+    <h2 class="serif">The fight runs six weeks to six months.</h2>
+    <div class="timeline">
+      <div class="track">
+        <div class="tick" style="left:0%"><div class="ev">Prescription written</div><div class="lbl">Day 0</div></div>
+        <div class="tick" style="left:14%"><div class="ev">Denial letter mailed</div><div class="lbl">Day 15</div></div>
+        <div class="tick" style="left:28%"><div class="ev">5–10 hrs of paperwork</div><div class="lbl">Day 20</div></div>
+        <div class="tick" style="left:42%"><div class="ev">Internal Appeal L1</div><div class="lbl">Day 30</div></div>
+        <div class="tick" style="left:56%"><div class="ev">Peer-to-peer call</div><div class="lbl">Day 60</div></div>
+        <div class="tick" style="left:72%"><div class="ev">Internal Appeal L2</div><div class="lbl">Day 90</div></div>
+        <div class="tick" style="left:88%"><div class="ev">External review (IRO)</div><div class="lbl">Day 120</div></div>
+        <div class="tick" style="left:100%"><div class="ev">State complaint</div><div class="lbl">Day 180</div></div>
+      </div>
+      <div class="summary">
+        <div class="cell"><div class="n">5–10 hrs</div><div class="l">of forensic paperwork per appeal — the reason most people give up</div></div>
+        <div class="cell"><div class="n">4.4 min</div><div class="l">average insurer call hold; brokers report 2-hour holds</div></div>
+        <div class="cell"><div class="n">13 hrs/wk</div><div class="l">prescribing physician spends on prior-auth paperwork (AMA 2024)</div></div>
+      </div>
+    </div>
+    <div class="footer-rule"><span>05 / 12</span><span>The gauntlet</span></div>
+  </section>
+
+  <!-- 6 — asymmetry -->
+  <section class="slide s6" data-slide="6">
+    <div class="label">The asymmetry</div>
+    <h1 class="small serif">The gap is paperwork.</h1>
+    <div class="courthouse">
+      <div class="bar-row">
+        <div class="lab">Denials appealed<div class="sub">of every 100 denied claims</div></div>
+        <div class="bar tiny" style="width:1%"></div>
+        <div class="pct">&lt; 1%</div>
+      </div>
+      <div class="bar-row">
+        <div class="lab">Appeals that win<div class="sub">Medicare Advantage, overturned partially or fully</div></div>
+        <div class="bar big" style="width:82%"></div>
+        <div class="pct">82%</div>
+      </div>
+      <div class="gap-arrow">This is where we live.</div>
+    </div>
+    <p class="footnote">KFF analysis of CMS Medicare Advantage data, February 2026.</p>
+    <div class="footer-rule"><span>06 / 12</span><span>The asymmetry</span></div>
+  </section>
+
+  <!-- 7 — what we built -->
+  <section class="slide s7" data-slide="7">
+    <div class="label">What PriorAuth Advocate does</div>
+    <h2 class="serif">Photo to filed phone appeal in 90 seconds.</h2>
+    <div class="arch">
+      <div class="row"><span class="who">Intake</span><span class="what">Reads the denial letter from a phone photo. Extracts insurer, drug, reason code, policy section, deadline.<small>Gemini 3.5 Flash · multimodal · structured JSON</small></span></div>
+      <div class="row"><span class="who">Policy</span><span class="what">Pulls the insurer's own medical policy. Quotes the criteria back at them.<small>Gemini 3.5 Flash · Vertex Vector Search over insurer policy corpus</small></span></div>
+      <div class="row"><span class="who">Drafting</span><span class="what">Writes the appeal letter — verbatim policy quotes, mapped evidence, pre-filled form.<small>Gemini 3.5 Flash · structured output</small></span></div>
+      <div class="row"><span class="who">Voice</span><span class="what">Dials the insurer. Navigates the IVR. Files the appeal. Reads back the confirmation number.<small>ElevenLabs Conversational AI · BYO Gemini · Twilio outbound</small></span></div>
+      <div class="row"><span class="who">Tracking</span><span class="what">Schedules Day 5, Day 14, Day 30 follow-ups. Auto-escalates to external review and state complaint.<small>n8n durable workflow · waits, retries, escalations</small></span></div>
+    </div>
+    <p class="arch summary serif">Gemini thinks. ElevenLabs speaks. n8n remembers, retries, escalates.</p>
+    <div class="footer-rule"><span>07 / 12</span><span>The architecture</span></div>
+  </section>
+
+  <!-- 8 — demo cue -->
+  <section class="slide s8" data-slide="8">
+    <h1 class="serif">Watch what happens<br/>when I take a photo.</h1>
+    <p class="hint">// switch to the app</p>
+    <div class="footer-rule"><span>08 / 12</span><span>Live demo</span></div>
+  </section>
+
+  <!-- 9 — why now -->
+  <section class="slide s9" data-slide="9">
+    <div class="label">Why now</div>
+    <h2 class="serif">None of this stack existed in this shape six months ago.</h2>
+    <div class="stack">
+      <div class="col">
+        <div class="role">The brain</div>
+        <h3>Gemini 3.5 Flash</h3>
+        <p>Sub-agents in parallel, structured JSON, vision and policy reasoning measured in cents per run. Antigravity managed agents make the fan-out cleanly inspectable.</p>
+      </div>
+      <div class="col">
+        <div class="role">The mouth</div>
+        <h3>ElevenLabs + Twilio</h3>
+        <p>Conversational voice agent over real outbound telephony. Sub-second turn-taking, interruption-safe, transcript and analysis returned by webhook.</p>
+      </div>
+      <div class="col">
+        <div class="role">The memory</div>
+        <h3>n8n</h3>
+        <p>Durable waits and retries across weeks. Schedules follow-up calls, refiles, state complaints, IRO packets — long after the patient is asleep.</p>
+      </div>
+    </div>
+    <p class="closer">Sub-dollar filed appeal. Under 30 seconds, photo to phone. The first stack where this is a product, not a PDF generator.</p>
+    <p class="powered-by">Powered by Gemini 3.5 Flash · Antigravity 2.0 · Antigravity browser harness · Vertex AI Vector Search · Cloud Run · Firestore · Cloud Healthcare API (FHIR R4) · Cloud Document AI · Imagen 3 · NotebookLM · Google AI Studio · Vertex BYO-LLM for ElevenLabs</p>
+    <div class="footer-rule"><span>09 / 12</span><span>Why now</span></div>
+  </section>
+
+  <!-- 10 — quadrant -->
+  <section class="slide s10" data-slide="10">
+    <div class="label">What no one has shipped</div>
+    <h2 class="serif">Every AI in prior auth today<br/>is on the wrong side of the patient.</h2>
+    <div class="quad-wrap">
+      <div class="quad">
+        <div class="axes">
+          <div class="ax h"></div>
+          <div class="ax v"></div>
+          <div class="lbl top">files &amp; follows through</div>
+          <div class="lbl bottom">drafts &amp; coaches</div>
+          <div class="lbl left">patient-side</div>
+          <div class="lbl right">payer-side</div>
+        </div>
+        <!-- top-left = patient + files & follows through (us, alone) -->
+        <span class="pt us" style="top:18%; left:14%">PriorAuth Advocate</span>
+        <!-- top-right = payer + files (payer-side automation) -->
+        <span class="pt" style="top:22%; left:60%">Cohere Health</span>
+        <span class="pt" style="top:30%; left:60%">eviCore (Cigna)</span>
+        <span class="pt" style="top:38%; left:60%">Carelon (Elevance)</span>
+        <span class="pt" style="top:46%; left:60%">Optum Humata</span>
+        <!-- patient-side, drafts + voice coaching but doesn't file -->
+        <span class="pt" style="top:40%; left:14%">Counterforce + Maxwell</span>
+        <!-- bottom-left = patient + letter only -->
+        <span class="pt" style="top:62%; left:14%">Claimable</span>
+        <span class="pt" style="top:70%; left:14%">Fight Health Insurance</span>
+        <!-- bottom-right = payer + letter only -->
+        <span class="pt" style="top:62%; left:60%">Availity</span>
+        <span class="pt" style="top:70%; left:60%">Banjo Health</span>
+      </div>
+      <div class="takeaway">
+        Counterforce drafts and <em style="font-style:italic">coaches</em> you through the call.<br/>
+        Payer-side tools <strong>are the denial.</strong><br/><br/>
+        We're the only one that <strong>makes the call</strong> — and keeps fighting for 60 days after it.
+      </div>
+    </div>
+    <div class="footer-rule"><span>10 / 12</span><span>The wedge</span></div>
+  </section>
+
+  <!-- 11 — impact -->
+  <section class="slide s11" data-slide="11">
+    <div class="label">Impact math</div>
+    <h2 class="serif">If we close even a fraction of the gap.</h2>
+    <div class="impact">
+      <div class="num">320K<small>/yr</small></div>
+      <div class="descr">reversed Medicare Advantage denials per year, at a 10% patient appeal rate and existing overturn odds. <strong>$640M–$1.6B</strong> in care delivered to patients who would otherwise have given up.</div>
+    </div>
+    <p class="impact-math"><em>4.1M MA denials/yr (KFF Feb 2026) × 10% appeal rate × 80% overturn rate ≈ 320,000 reversals × $2K–$5K per disputed claim.</em></p>
+    <div class="footer-rule"><span>11 / 12</span><span>Impact</span></div>
+  </section>
+
+  <!-- 12 — close -->
+  <section class="slide s12" data-slide="12">
+    <p class="quote serif">Insurance denied your care.<br/><em>We built an advocate that does not give up.</em></p>
+    <div class="meta">
+      <span>github.com/&nbsp;rakeshreddyd56&nbsp;/&nbsp;priorauth-advocate</span>
+      <span>·</span>
+      <span>priorauth.app</span>
+    </div>
+    <div class="footer-rule"><span>12 / 12</span><span>Close</span></div>
+  </section>
+
+</div>
+
+<div class="disclaimer">PriorAuth Advocate is an administrative-advocacy tool that automates insurance paperwork. It is not a medical device, does not provide medical advice, and does not replace your physician.</div>
+
+<div class="nav">
+  <span class="count" id="counter">01 / 12</span>
+  <span class="key">←</span>
+  <span class="key">→</span>
+  <span class="key">F · fullscreen</span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let idx = 0;
+  function show(n) {
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    document.getElementById('counter').textContent = String(idx + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+    location.hash = String(idx + 1);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { show(idx + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(idx - 1); e.preventDefault(); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key.toLowerCase() === 'f') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  const initial = parseInt(location.hash.replace('#', '')) || 1;
+  show(initial - 1);
+</script>
+</body>
+</html>
