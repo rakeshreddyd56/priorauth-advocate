@@ -3,71 +3,275 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, SkipForward, SkipBack } from 'lucide-react';
 
-// ─── Node positions on a 1600×900 canvas ──────────────────────────
+// ──────────────────────────────────────────────────────────────────
+// Node positions on a 1600×640 canvas
+// ──────────────────────────────────────────────────────────────────
+type NodeKind = 'pill' | 'circle' | 'tier-header';
 const NODES = {
-  user:        { x: 60,   y: 100, w: 220, h: 70, label: 'Patient',         sub: 'Rakesh · Snaps photo of denial letter' },
-  frontend:    { x: 60,   y: 230, w: 220, h: 70, label: 'Next.js Dashboard', sub: '6-lane UI · SSE · Vercel' },
-  orchestrator:{ x: 400,  y: 230, w: 240, h: 70, label: 'Orchestrator',    sub: 'Cloud Run · strict Zod contracts' },
-  intake:      { x: 760,  y: 80,  w: 220, h: 70, label: '① Intake',        sub: 'Gemini 3.5 Flash · Vision OCR' },
-  policy:      { x: 760,  y: 200, w: 220, h: 70, label: '② Policy',        sub: 'Gemini · RAG · Aetna corpus' },
-  clinical:    { x: 760,  y: 320, w: 220, h: 70, label: '③ Clinical Evidence', sub: 'Cloud Healthcare API · FHIR R4' },
-  drafting:    { x: 1080, y: 200, w: 220, h: 70, label: '④ Drafting',      sub: 'Gemini · AppealLetter JSON' },
-  voiceprep:   { x: 1080, y: 320, w: 220, h: 70, label: '⑤ Voice Prep',    sub: 'Gemini · VoiceScript' },
-  elevenlabs:  { x: 1370, y: 320, w: 200, h: 70, label: '⑥ Voice Exec',    sub: 'ElevenLabs · Twilio' },
-  n8n:         { x: 1080, y: 470, w: 220, h: 70, label: '⑦ n8n Tracking',  sub: 'Durable · Day 5 / 14 / 30' },
-  outputs:     { x: 760,  y: 470, w: 220, h: 70, label: 'Outputs',         sub: 'Email · IRO · DOI · Confirmation' },
+  user:        { x: 80,   y: 110, w: 80,  kind: 'circle' as NodeKind, label: 'Patient',           sub: 'Rakesh',                       icon: 'user' },
+  frontend:    { x: 80,   y: 280, w: 200, kind: 'pill' as NodeKind,   label: 'Dashboard',         sub: 'Next.js · 6-lane UI',           icon: 'window' },
+  orchestrator:{ x: 390,  y: 280, w: 220, kind: 'pill' as NodeKind,   label: 'Managed Agents',    sub: 'Gemini 3.5 Flash · planner',    icon: 'hub' },
+  intake:      { x: 760,  y: 110, w: 90,  kind: 'circle' as NodeKind, label: '① Intake',          sub: 'Vision OCR',                    icon: 'eye' },
+  policy:      { x: 760,  y: 280, w: 90,  kind: 'circle' as NodeKind, label: '② Policy',          sub: 'RAG · Aetna corpus',            icon: 'book' },
+  clinical:    { x: 760,  y: 450, w: 90,  kind: 'circle' as NodeKind, label: '③ Clinical',        sub: 'FHIR R4 · live',                icon: 'heart' },
+  drafting:    { x: 990,  y: 280, w: 90,  kind: 'circle' as NodeKind, label: '④ Drafting',        sub: 'AppealLetter',                  icon: 'pen' },
+  voiceprep:   { x: 1190, y: 280, w: 90,  kind: 'circle' as NodeKind, label: '⑤ Voice Prep',      sub: 'VoiceScript',                   icon: 'speech' },
+  elevenlabs:  { x: 1380, y: 280, w: 180, kind: 'pill' as NodeKind,   label: 'ElevenLabs',        sub: 'Live conversation',             icon: 'mic' },
+  n8n:         { x: 1190, y: 450, w: 200, kind: 'pill' as NodeKind,   label: 'n8n workflow',      sub: 'Durable · long-horizon',        icon: 'loop' },
+  gmail:       { x: 920,  y: 450, w: 150, kind: 'pill' as NodeKind,   label: 'Gmail status',      sub: 'Patient email',                 icon: 'envelope' },
+  iro:         { x: 720,  y: 540, w: 150, kind: 'pill' as NodeKind,   label: 'IRO packet',        sub: 'External review',               icon: 'document' },
+  doi:         { x: 900,  y: 540, w: 170, kind: 'pill' as NodeKind,   label: 'State DOI complaint', sub: 'Auto-escalation',            icon: 'building' },
 } as const;
-
 type NodeKey = keyof typeof NODES;
 
-// ─── Edges (from → to) and which step they belong to ──────────────
-const EDGES: { from: NodeKey; to: NodeKey; step: number; color?: string }[] = [
-  { from: 'user',         to: 'frontend',     step: 1 },
-  { from: 'frontend',     to: 'orchestrator', step: 2 },
-  { from: 'orchestrator', to: 'intake',       step: 3 },
-  { from: 'orchestrator', to: 'policy',       step: 4 },
-  { from: 'orchestrator', to: 'clinical',     step: 4 },
-  { from: 'policy',       to: 'drafting',     step: 5 },
-  { from: 'clinical',     to: 'drafting',     step: 5 },
-  { from: 'drafting',     to: 'voiceprep',    step: 6 },
-  { from: 'voiceprep',    to: 'elevenlabs',   step: 7 },
-  { from: 'elevenlabs',   to: 'n8n',          step: 8 },
-  { from: 'n8n',          to: 'outputs',      step: 9 },
+const ICON_PATHS: Record<string, React.ReactNode> = {
+  user: (
+    <g>
+      <circle cx="0" cy="-6" r="5" fill="currentColor" />
+      <path d="M -8 8 C -8 2, 8 2, 8 8 L 8 12 L -8 12 Z" fill="currentColor" />
+    </g>
+  ),
+  window: (
+    <g>
+      <rect x="-10" y="-8" width="20" height="16" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <line x1="-10" y1="-3" x2="10" y2="-3" stroke="currentColor" strokeWidth="1" />
+      <circle cx="-7" cy="-6" r="0.6" fill="currentColor" />
+    </g>
+  ),
+  hub: (
+    <g>
+      <circle cx="0" cy="0" r="3" fill="currentColor" />
+      <line x1="0" y1="0" x2="-9" y2="-7" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="0" y1="0" x2="9" y2="-7" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="0" y1="0" x2="-9" y2="7" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="0" y1="0" x2="9" y2="7" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="-9" cy="-7" r="1.6" fill="currentColor" />
+      <circle cx="9" cy="-7" r="1.6" fill="currentColor" />
+      <circle cx="-9" cy="7" r="1.6" fill="currentColor" />
+      <circle cx="9" cy="7" r="1.6" fill="currentColor" />
+    </g>
+  ),
+  eye: (
+    <g>
+      <path d="M -10 0 C -6 -5, 6 -5, 10 0 C 6 5, -6 5, -10 0 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="0" cy="0" r="3" fill="currentColor" />
+    </g>
+  ),
+  book: (
+    <g>
+      <path d="M -9 -8 L 0 -6 L 9 -8 L 9 8 L 0 6 L -9 8 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <line x1="0" y1="-6" x2="0" y2="6" stroke="currentColor" strokeWidth="1" />
+    </g>
+  ),
+  heart: (
+    <g>
+      <path d="M 0 8 C -10 0, -10 -8, -4 -8 C -1 -8, 0 -5, 0 -5 C 0 -5, 1 -8, 4 -8 C 10 -8, 10 0, 0 8 Z" fill="currentColor" />
+      <path d="M -5 -1 L 5 -1 M 0 -6 L 0 4" stroke="white" strokeWidth="1.2" opacity="0.85" />
+    </g>
+  ),
+  pen: (
+    <g>
+      <path d="M -8 8 L -6 4 L 6 -8 L 8 -6 L -4 6 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <line x1="-8" y1="8" x2="-5" y2="5" stroke="currentColor" strokeWidth="1.5" />
+    </g>
+  ),
+  speech: (
+    <g>
+      <path d="M -10 -6 L 10 -6 L 10 4 L 2 4 L -2 8 L -2 4 L -10 4 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="-4" cy="-1" r="0.8" fill="currentColor" />
+      <circle cx="0" cy="-1" r="0.8" fill="currentColor" />
+      <circle cx="4" cy="-1" r="0.8" fill="currentColor" />
+    </g>
+  ),
+  mic: (
+    <g>
+      <rect x="-3.5" y="-9" width="7" height="13" rx="3.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M -7 0 C -7 5, 7 5, 7 0" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <line x1="0" y1="5" x2="0" y2="10" stroke="currentColor" strokeWidth="1.5" />
+    </g>
+  ),
+  loop: (
+    <g>
+      <path d="M 7 -2 A 8 8 0 1 1 0 -8" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <polygon points="5,-5 8,-2 5,1" fill="currentColor" />
+      <text x="0" y="3" fontSize="6" fontFamily="Charter, serif" fill="currentColor" textAnchor="middle">n8n</text>
+    </g>
+  ),
+  envelope: (
+    <g>
+      <rect x="-9" y="-6" width="18" height="12" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M -9 -6 L 0 2 L 9 -6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+    </g>
+  ),
+  document: (
+    <g>
+      <path d="M -7 -9 L 4 -9 L 8 -5 L 8 9 L -7 9 Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M 4 -9 L 4 -5 L 8 -5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <line x1="-3" y1="0" x2="4" y2="0" stroke="currentColor" strokeWidth="1" />
+      <line x1="-3" y1="4" x2="4" y2="4" stroke="currentColor" strokeWidth="1" />
+    </g>
+  ),
+  building: (
+    <g>
+      <rect x="-8" y="-9" width="16" height="18" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <rect x="-5" y="-6" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="-1" y="-6" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="3" y="-6" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="-5" y="-2" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="-1" y="-2" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="3" y="-2" width="2.5" height="2.5" fill="currentColor" />
+      <rect x="-2.5" y="3" width="5" height="6" fill="currentColor" />
+    </g>
+  ),
+};
+
+// ──────────────────────────────────────────────────────────────────
+// Edges with optional data-shape label that appears mid-flow
+// ──────────────────────────────────────────────────────────────────
+const EDGES: { from: NodeKey; to: NodeKey; label?: string }[] = [
+  { from: 'user',         to: 'frontend',     label: 'photo' },
+  { from: 'frontend',     to: 'orchestrator', label: 'image upload' },
+  { from: 'orchestrator', to: 'intake',       label: 'image bytes' },
+  { from: 'orchestrator', to: 'policy',       label: 'denial' },
+  { from: 'orchestrator', to: 'clinical',     label: 'denial' },
+  { from: 'intake',       to: 'drafting',     label: 'DenialLetter' },
+  { from: 'policy',       to: 'drafting',     label: 'PolicyMatch' },
+  { from: 'clinical',     to: 'drafting',     label: 'corroboration' },
+  { from: 'drafting',     to: 'voiceprep',    label: 'AppealLetter' },
+  { from: 'voiceprep',    to: 'elevenlabs',   label: 'VoiceScript' },
+  { from: 'elevenlabs',   to: 'n8n',          label: 'CallResult + transcript' },
+  { from: 'n8n',          to: 'gmail',        label: 'status email' },
+  { from: 'n8n',          to: 'iro',          label: 'Day 14 packet' },
+  { from: 'n8n',          to: 'doi',          label: 'Day 30 filing' },
 ];
 
-// ─── Steps (the narrated flow) ────────────────────────────────────
-const STEPS: { active: NodeKey[]; title: string; detail: string; edges: number[] }[] = [
-  { active: [], title: 'Ready', detail: 'Click play. The flow walks through every active component in the order the demo runs.', edges: [] },
-  { active: ['user', 'frontend'], title: '1 · Patient uploads denial letter', detail: 'Photo of the Aetna denial reaches the Next.js dashboard.', edges: [1] },
-  { active: ['frontend', 'orchestrator'], title: '2 · Frontend posts to orchestrator', detail: 'Cloud Run service receives the photo; the planner agent decides the lane sequence.', edges: [2] },
-  { active: ['orchestrator', 'intake'], title: '3 · Intake — Gemini 3.5 Flash Vision', detail: 'Multimodal call extracts DenialLetter JSON: insurer, drug, denial reason, cited policy section, appeal deadline.', edges: [3] },
-  { active: ['orchestrator', 'policy', 'clinical'], title: '4 · Policy ∥ Clinical Evidence (PARALLEL)', detail: 'Policy lane RAG-queries the Aetna CPB corpus. Clinical Evidence lane fetches an 8-week azathioprine trial note live from the Cloud Healthcare FHIR R4 store.', edges: [4, 5] },
-  { active: ['policy', 'clinical', 'drafting'], title: '5 · Drafting — fan-in', detail: 'Gemini composes the appeal letter, quoting policy clauses verbatim and citing the FHIR-corroborated trial. Wins-prob 85%.', edges: [6, 7] },
-  { active: ['drafting', 'voiceprep'], title: '6 · Voice Prep — script generation', detail: 'AppealLetter becomes a tight VoiceScript JSON with opening line, IVR strategy, and forbidden phrases.', edges: [8] },
-  { active: ['voiceprep', 'elevenlabs'], title: '7 · Voice Execution — ElevenLabs', detail: 'Browser SDK opens a real conversation. Agent voice plays through laptop speakers; patient or rep speaks back. Same code path as production Twilio outbound.', edges: [9] },
-  { active: ['elevenlabs', 'n8n'], title: '8 · Post-call webhook → n8n', detail: 'CallResult shipped to the n8n workflow with full transcript + confirmation number.', edges: [10] },
-  { active: ['n8n', 'outputs'], title: '9 · Long-horizon tracking', detail: 'n8n schedules Day 5 status check, Day 14 fax refile, Day 30 state DOI complaint. Status email sent to the patient. IRO escalation packet drafted.', edges: [11] },
+// ──────────────────────────────────────────────────────────────────
+// Narration covering managed agents, parallel fan-out, Gmail flow
+// ──────────────────────────────────────────────────────────────────
+const STEPS: { active: NodeKey[]; activeEdges: number[]; title: string; detail: string }[] = [
+  {
+    active: [],
+    activeEdges: [],
+    title: 'Ready to walk the architecture',
+    detail: 'Press Play. Each step lights the live components, animates the data flow between them, and explains what just happened. This is exactly the order the demo runs.',
+  },
+  {
+    active: ['user'],
+    activeEdges: [],
+    title: '0 · The patient',
+    detail: 'Rakesh — 32, Crohn\'s disease, Aetna PPO. He got a denial letter. The agent fleet activates the moment he picks up his phone.',
+  },
+  {
+    active: ['user', 'frontend'],
+    activeEdges: [0],
+    title: '1 · Photo of denial → Dashboard',
+    detail: 'The Next.js dashboard accepts the photo over a simple multipart upload. Same code path as the production mobile app.',
+  },
+  {
+    active: ['frontend', 'orchestrator'],
+    activeEdges: [1],
+    title: '2 · Managed Agents orchestrator activates',
+    detail: 'This is the Google managed-agents pattern. A single planner agent (Gemini 3.5 Flash) decides the lane sequence, holds the run state, and enforces typed contracts between every sub-agent. No agent ever frees itself from the schema.',
+  },
+  {
+    active: ['orchestrator', 'intake'],
+    activeEdges: [2],
+    title: '3 · Intake sub-agent — Gemini Vision',
+    detail: 'Multimodal call. Reads the photo, extracts DenialLetter JSON: insurer, drug, denial reason code, cited policy section, appeal deadline, contact phone. Strict Zod schema rejects anything malformed.',
+  },
+  {
+    active: ['orchestrator', 'policy', 'clinical'],
+    activeEdges: [3, 4],
+    title: '4 · Parallel fan-out — Policy ∥ Clinical Evidence',
+    detail: 'This is the managed-agents superpower. Policy and Clinical Evidence sub-agents fire simultaneously off the same DenialLetter. Policy RAG-queries the Aetna CPB corpus; Clinical Evidence fetches the patient\'s 8-week azathioprine trial note LIVE from Cloud Healthcare API FHIR R4.',
+  },
+  {
+    active: ['policy', 'clinical', 'drafting'],
+    activeEdges: [5, 6, 7],
+    title: '5 · Fan-in to Drafting',
+    detail: 'All three upstream payloads land at the Drafting sub-agent. Gemini composes a formal appeal letter that quotes the insurer\'s own policy clauses verbatim and cites the FHIR-corroborated trial. Returns AppealLetter JSON with a win-probability score.',
+  },
+  {
+    active: ['drafting', 'voiceprep'],
+    activeEdges: [8],
+    title: '6 · Voice Prep — script generation',
+    detail: 'The drafting output becomes a compact VoiceScript: opening line, IVR navigation strategy, 30-second appeal summary, forbidden phrases. This is what the voice agent will read aloud on the call.',
+  },
+  {
+    active: ['voiceprep', 'elevenlabs'],
+    activeEdges: [9],
+    title: '7 · Voice Execution — ElevenLabs',
+    detail: 'The ElevenLabs Conversational AI runtime takes the VoiceScript and opens a live audio session — browser SDK for the stage demo, Twilio outbound for production. Real conversation, sub-second turn-taking, full transcript captured.',
+  },
+  {
+    active: ['elevenlabs', 'n8n'],
+    activeEdges: [10],
+    title: '8 · Post-call webhook → n8n',
+    detail: 'When the call ends, ElevenLabs posts the CallResult to an n8n webhook. n8n is the durable execution layer — the part of the architecture that keeps running when the patient closes their laptop.',
+  },
+  {
+    active: ['n8n', 'gmail'],
+    activeEdges: [11],
+    title: '9 · Gmail status email — fired immediately',
+    detail: 'First action n8n takes: send the patient a styled status email with confirmation number, appeal summary, Day 5/14/30 schedule. The exact email you saw drafted in your Gmail.',
+  },
+  {
+    active: ['n8n', 'iro'],
+    activeEdges: [12],
+    title: '10 · Day 14 — IRO packet armed',
+    detail: 'If Aetna doesn\'t respond in 14 days, n8n triggers the Drafting agent in a second mode to generate the full External Review (IRO) escalation packet. Patient just needs to click Send.',
+  },
+  {
+    active: ['n8n', 'doi'],
+    activeEdges: [13],
+    title: '11 · Day 30 — State DOI complaint filed',
+    detail: 'Still denied? n8n drafts and files an automatic complaint with the State Department of Insurance. The long-horizon part: 30 days after the patient went back to being sick, the system is still fighting on their behalf.',
+  },
+  {
+    active: ['user', 'frontend', 'orchestrator', 'intake', 'policy', 'clinical', 'drafting', 'voiceprep', 'elevenlabs', 'n8n', 'gmail', 'iro', 'doi'],
+    activeEdges: Array.from({length: EDGES.length}, (_, i) => i),
+    title: '12 · The whole agent fleet, in one frame',
+    detail: 'Six Gemini sub-agents on Google managed-agent infrastructure. One ElevenLabs voice runtime. One n8n durable workflow. Three escalation outputs. Photo to filed appeal in under 90 seconds. n8n keeps fighting for 60 days after.',
+  },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────
-function bezierPath(from: NodeKey, to: NodeKey) {
+// ──────────────────────────────────────────────────────────────────
+// Path geometry — wavy bezier for organic feel
+// ──────────────────────────────────────────────────────────────────
+function pathBetween(from: NodeKey, to: NodeKey) {
   const a = NODES[from], b = NODES[to];
-  const x1 = a.x + a.w, y1 = a.y + a.h / 2;
-  const x2 = b.x,       y2 = b.y + b.h / 2;
-  const dx = (x2 - x1) * 0.55;
-  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  const ax = a.x + a.w / 2, ay = a.y;
+  const bx = b.x + b.w / 2, by = b.y;
+
+  // Pick attachment points based on relative position
+  const dx = bx - ax;
+  const dy = by - ay;
+  let x1, y1, x2, y2;
+
+  if (Math.abs(dx) > Math.abs(dy) * 0.8) {
+    // Horizontal-dominant — attach on horizontal sides
+    x1 = dx > 0 ? a.x + a.w : a.x;
+    y1 = a.y + (a.kind === 'circle' ? 0 : 25);
+    x2 = dx > 0 ? b.x : b.x + b.w;
+    y2 = b.y + (b.kind === 'circle' ? 0 : 25);
+  } else {
+    // Vertical-dominant — attach top/bottom
+    x1 = a.x + a.w / 2;
+    y1 = dy > 0 ? a.y + (a.kind === 'circle' ? 32 : 50) : a.y - (a.kind === 'circle' ? 32 : 0);
+    x2 = b.x + b.w / 2;
+    y2 = dy > 0 ? b.y - (b.kind === 'circle' ? 32 : 0) : b.y + (b.kind === 'circle' ? 32 : 50);
+  }
+
+  const cx1 = x1 + (x2 - x1) * 0.5;
+  const cy1 = y1;
+  const cx2 = x1 + (x2 - x1) * 0.5;
+  const cy2 = y2;
+  return { d: `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`, mx: (x1 + x2) / 2, my: (y1 + y2) / 2 };
 }
 
-function leftOverlapPath(from: NodeKey, to: NodeKey) {
-  // For edges going right-to-left (n8n → outputs)
-  const a = NODES[from], b = NODES[to];
-  const x1 = a.x, y1 = a.y + a.h / 2;
-  const x2 = b.x + b.w, y2 = b.y + b.h / 2;
-  const dx = (x1 - x2) * 0.55;
-  return `M ${x1} ${y1} C ${x1 - dx} ${y1}, ${x2 + dx} ${y2}, ${x2} ${y2}`;
-}
-
-// ─── Component ────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────────────────────────
 export default function ArchitectureFlow() {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -76,210 +280,176 @@ export default function ArchitectureFlow() {
   useEffect(() => {
     if (!playing) return;
     tRef.current = window.setTimeout(() => {
-      if (step >= STEPS.length - 1) {
-        setStep(0); // loop
-      } else {
-        setStep(s => s + 1);
-      }
-    }, step === 0 ? 1500 : 2800);
+      if (step >= STEPS.length - 1) setStep(0);
+      else setStep(s => s + 1);
+    }, step === 0 ? 1500 : 3200);
     return () => { if (tRef.current) clearTimeout(tRef.current); };
   }, [step, playing]);
 
   const current = STEPS[step];
-  const activeSet = new Set(current.active);
-  const activeEdges = new Set(current.edges);
-
-  const nodeStyle = (key: NodeKey) => {
-    const isActive = activeSet.has(key);
-    return {
-      fill: isActive ? 'var(--pa-accent)' : '#FFFFFF',
-      stroke: isActive ? 'var(--pa-accent)' : 'rgba(31,36,33,0.25)',
-      strokeWidth: isActive ? 2 : 1,
-    };
-  };
-  const textStyle = (key: NodeKey) => ({
-    fill: activeSet.has(key) ? '#FAF8F3' : 'var(--pa-ink)',
-  });
-  const subStyle = (key: NodeKey) => ({
-    fill: activeSet.has(key) ? 'rgba(250,248,243,0.7)' : 'var(--pa-ink-3)',
-  });
+  const activeNodes = new Set(current.active);
+  const activeEdges = new Set(current.activeEdges);
 
   return (
     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
       {/* ── Controls ────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            onClick={() => { setStep(Math.max(0, step - 1)); setPlaying(false); }}
-            className="pa-btn-ghost"
-            style={{ padding: '0.45rem 0.7rem' }}
-          ><SkipBack size={14} /></button>
-          <button
-            onClick={() => setPlaying(p => !p)}
-            className="pa-btn-accent"
-            style={{ padding: '0.5rem 1.1rem' }}
-          >
-            {playing ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Auto-play flow</>}
+          <button onClick={() => { setStep(Math.max(0, step - 1)); setPlaying(false); }} className="pa-btn-ghost" style={{ padding: '0.45rem 0.7rem' }}><SkipBack size={14} /></button>
+          <button onClick={() => setPlaying(p => !p)} className="pa-btn-accent" style={{ padding: '0.5rem 1.1rem' }}>
+            {playing ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Auto-play architecture walkthrough</>}
           </button>
-          <button
-            onClick={() => { setStep(Math.min(STEPS.length - 1, step + 1)); setPlaying(false); }}
-            className="pa-btn-ghost"
-            style={{ padding: '0.45rem 0.7rem' }}
-          ><SkipForward size={14} /></button>
-          <button
-            onClick={() => { setStep(0); setPlaying(false); }}
-            className="pa-btn-ghost"
-            style={{ padding: '0.45rem 0.7rem' }}
-          ><RotateCcw size={12} /></button>
+          <button onClick={() => { setStep(Math.min(STEPS.length - 1, step + 1)); setPlaying(false); }} className="pa-btn-ghost" style={{ padding: '0.45rem 0.7rem' }}><SkipForward size={14} /></button>
+          <button onClick={() => { setStep(0); setPlaying(false); }} className="pa-btn-ghost" style={{ padding: '0.45rem 0.7rem' }}><RotateCcw size={12} /></button>
         </div>
-
-        {/* Step indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
           {STEPS.map((_, i) => (
             <button
               key={i}
               onClick={() => { setStep(i); setPlaying(false); }}
               style={{
-                width: '1.6rem', height: '1.6rem',
-                borderRadius: '50%',
+                width: '1.55rem', height: '1.55rem', borderRadius: '50%',
                 background: i === step ? 'var(--pa-accent)' : i < step ? 'var(--pa-accent-soft)' : 'transparent',
                 color: i === step ? 'white' : i < step ? 'var(--pa-accent)' : 'var(--pa-ink-3)',
                 border: '1px solid ' + (i === step ? 'var(--pa-accent)' : 'var(--pa-rule-soft)'),
-                fontSize: '0.7rem',
-                fontFamily: 'Charter, serif',
-                cursor: 'pointer',
-                padding: 0,
-                lineHeight: 1,
+                fontSize: '0.7rem', fontFamily: 'Charter, serif',
+                cursor: 'pointer', padding: 0, lineHeight: 1,
               }}
-            >
-              {i}
-            </button>
+            >{i}</button>
           ))}
         </div>
       </div>
 
-      {/* ── Current step caption ────────────────────────────────── */}
-      <div className="pa-card" style={{ marginBottom: '1rem', borderLeft: '3px solid var(--pa-accent)' }}>
-        <div className="pa-label" style={{ marginBottom: '0.35rem' }}>Step {step} of {STEPS.length - 1}</div>
-        <div className="pa-serif" style={{ fontSize: '1.25rem', marginBottom: '0.4rem' }}>{current.title}</div>
-        <p style={{ fontSize: '0.92rem', color: 'var(--pa-ink-2)', lineHeight: 1.55, margin: 0 }}>{current.detail}</p>
+      {/* ── Caption ─────────────────────────────────────────────── */}
+      <div className="pa-card" style={{ marginBottom: '1rem', borderLeft: '3px solid var(--pa-accent)', minHeight: '7.5rem' }}>
+        <div className="pa-label" style={{ marginBottom: '0.35rem' }}>Step {step} of {STEPS.length - 1} · narrate over the motion</div>
+        <div className="pa-serif" style={{ fontSize: '1.35rem', marginBottom: '0.45rem', lineHeight: 1.25 }}>{current.title}</div>
+        <p style={{ fontSize: '0.94rem', color: 'var(--pa-ink-2)', lineHeight: 1.55, margin: 0 }}>{current.detail}</p>
       </div>
 
       {/* ── SVG diagram ─────────────────────────────────────────── */}
-      <div style={{ background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '4px', padding: '0.5rem', overflow: 'hidden' }}>
-        <svg viewBox="0 0 1600 600" style={{ width: '100%', display: 'block', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '4px', padding: '0.5rem' }}>
+        <svg viewBox="0 0 1600 660" style={{ width: '100%', display: 'block', fontFamily: 'Inter, sans-serif' }}>
           <defs>
-            <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--pa-accent)" />
             </marker>
-            <marker id="arrow-idle" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <marker id="arrow-idle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(31,36,33,0.35)" />
             </marker>
           </defs>
 
-          {/* Edges */}
+          {/* ── Tier labels (horizontal bands) ── */}
+          <text x="20" y="40" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>① Patient</text>
+          <text x="20" y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>② App · managed agents</text>
+          <text x="700" y="40" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>③ Gemini 3.5 Flash sub-agents (parallel fan-out)</text>
+          <text x="1340" y="265" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>④ Voice runtime</text>
+          <text x="700" y="435" fontSize="9" letterSpacing="2.5" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>⑤ Durable long-horizon · outputs</text>
+
+          {/* ── Edges ── */}
           {EDGES.map((edge, i) => {
-            const isActive = activeEdges.has(i + 1);
-            const path = edge.from === 'n8n' && edge.to === 'outputs' ? leftOverlapPath(edge.from, edge.to) : bezierPath(edge.from, edge.to);
+            const isActive = activeEdges.has(i);
+            const { d, mx, my } = pathBetween(edge.from, edge.to);
             return (
               <g key={i}>
-                {/* Idle line */}
                 <path
-                  d={path}
-                  fill="none"
+                  d={d} fill="none"
                   stroke={isActive ? 'var(--pa-accent)' : 'rgba(31,36,33,0.18)'}
-                  strokeWidth={isActive ? 2.5 : 1}
+                  strokeWidth={isActive ? 2 : 1}
                   markerEnd={isActive ? 'url(#arrow-active)' : 'url(#arrow-idle)'}
                   style={{ transition: 'all 0.4s ease' }}
                 />
-                {/* Animated flowing dash */}
                 {isActive && (
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="3"
-                    strokeDasharray="8 12"
-                    style={{ animation: 'pa-flow 1.4s linear infinite' }}
-                  />
+                  <>
+                    <path d={d} fill="none" stroke="white" strokeWidth="2.5" strokeDasharray="6 14" style={{ animation: 'pa-flow 1.4s linear infinite' }} />
+                    {/* Data shape label floating mid-edge */}
+                    {edge.label && (
+                      <g style={{ animation: 'pa-fade-in 0.4s ease' }}>
+                        <rect
+                          x={mx - (edge.label.length * 3.4 + 8)} y={my - 9}
+                          width={edge.label.length * 6.8 + 16} height={18}
+                          rx="9"
+                          fill="var(--pa-accent)"
+                        />
+                        <text
+                          x={mx} y={my + 3}
+                          fontSize="10"
+                          fontFamily="iA Writer Mono S, SF Mono, monospace"
+                          fill="white"
+                          textAnchor="middle"
+                          letterSpacing="0.04em"
+                        >{edge.label}</text>
+                      </g>
+                    )}
+                  </>
                 )}
               </g>
             );
           })}
 
-          {/* Nodes */}
+          {/* ── Nodes ── */}
           {(Object.keys(NODES) as NodeKey[]).map(key => {
             const n = NODES[key];
-            const active = activeSet.has(key);
+            const active = activeNodes.has(key);
+
+            const fillColor = active ? 'var(--pa-accent)' : '#FFFFFF';
+            const strokeColor = active ? 'var(--pa-accent)' : 'rgba(31,36,33,0.22)';
+            const textColor = active ? '#FAF8F3' : 'var(--pa-ink)';
+            const subColor = active ? 'rgba(250,248,243,0.78)' : 'var(--pa-ink-3)';
+
+            if (n.kind === 'circle') {
+              const r = n.w / 2;
+              const cx = n.x + r;
+              const cy = n.y;
+              return (
+                <g key={key} style={{ transition: 'all 0.4s ease' }}>
+                  {active && (
+                    <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke="var(--pa-accent)" strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
+                  )}
+                  <circle cx={cx} cy={cy} r={r} fill={fillColor} stroke={strokeColor} strokeWidth={active ? 2 : 1} style={{ transition: 'all 0.4s ease' }} />
+                  <g transform={`translate(${cx}, ${cy - 5})`} color={textColor} style={{ transition: 'color 0.4s ease' }}>
+                    {ICON_PATHS[n.icon]}
+                  </g>
+                  <text x={cx} y={cy + 60} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill={active ? 'var(--pa-ink)' : 'var(--pa-ink)'} textAnchor="middle">{n.label}</text>
+                  <text x={cx} y={cy + 76} fontSize="10" fill="var(--pa-ink-3)" textAnchor="middle">{n.sub}</text>
+                </g>
+              );
+            }
+
+            // Pill node
             return (
               <g key={key} style={{ transition: 'all 0.4s ease' }}>
-                {/* Pulse ring when active */}
                 {active && (
-                  <rect
-                    x={n.x - 6} y={n.y - 6}
-                    width={n.w + 12} height={n.h + 12}
-                    rx="6"
-                    fill="none"
-                    stroke="var(--pa-accent)"
-                    strokeWidth="2"
-                    opacity="0"
-                    style={{ animation: 'pa-pulse-ring 1.6s ease-out infinite' }}
-                  />
+                  <rect x={n.x - 6} y={n.y - 6} width={n.w + 12} height="62" rx="33" fill="none" stroke="var(--pa-accent)" strokeWidth="2" opacity="0" style={{ animation: 'pa-pulse-ring 1.7s ease-out infinite' }} />
                 )}
-                <rect
-                  x={n.x} y={n.y}
-                  width={n.w} height={n.h}
-                  rx="3"
-                  {...nodeStyle(key)}
-                  style={{ transition: 'all 0.4s ease' }}
-                />
-                <text
-                  x={n.x + 14} y={n.y + 28}
-                  fontSize="16"
-                  fontWeight="500"
-                  fontFamily="Charter, serif"
-                  {...textStyle(key)}
-                  style={{ transition: 'fill 0.4s ease' }}
-                >
-                  {n.label}
-                </text>
-                <text
-                  x={n.x + 14} y={n.y + 49}
-                  fontSize="11"
-                  {...subStyle(key)}
-                  style={{ transition: 'fill 0.4s ease' }}
-                >
-                  {n.sub}
-                </text>
+                <rect x={n.x} y={n.y} width={n.w} height="50" rx="25" fill={fillColor} stroke={strokeColor} strokeWidth={active ? 2 : 1} style={{ transition: 'all 0.4s ease' }} />
+                <g transform={`translate(${n.x + 22}, ${n.y + 25})`} color={textColor} style={{ transition: 'color 0.4s ease' }}>
+                  {ICON_PATHS[n.icon]}
+                </g>
+                <text x={n.x + 44} y={n.y + 21} fontSize="13" fontFamily="Charter, serif" fontWeight="500" fill={textColor} style={{ transition: 'fill 0.4s ease' }}>{n.label}</text>
+                <text x={n.x + 44} y={n.y + 37} fontSize="10" fill={subColor} style={{ transition: 'fill 0.4s ease' }}>{n.sub}</text>
               </g>
             );
           })}
-
-          {/* Tier labels */}
-          <text x="20" y="32" fontSize="10" letterSpacing="2" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>USER · UI</text>
-          <text x="370" y="32" fontSize="10" letterSpacing="2" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>ORCHESTRATOR · CLOUD RUN</text>
-          <text x="755" y="32" fontSize="10" letterSpacing="2" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>SUB-AGENTS · GEMINI 3.5 FLASH</text>
-          <text x="1075" y="32" fontSize="10" letterSpacing="2" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>FAN-IN · VOICE</text>
-          <text x="1360" y="32" fontSize="10" letterSpacing="2" fill="var(--pa-ink-3)" style={{ textTransform: 'uppercase' }}>EXECUTION</text>
         </svg>
       </div>
 
       {/* ── Legend ──────────────────────────────────────────────── */}
       <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--pa-ink-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '14px', height: '14px', background: 'var(--pa-accent)', borderRadius: '2px' }} />
-          Active in current step
+          <div style={{ width: '14px', height: '14px', background: 'var(--pa-accent)', borderRadius: '50%' }} />
+          Active in this step
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '14px', height: '14px', background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '2px' }} />
-          Idle / waiting
+          <div style={{ width: '14px', height: '14px', background: 'white', border: '1px solid var(--pa-rule-soft)', borderRadius: '50%' }} />
+          Idle component
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: '24px', height: '2px', background: 'var(--pa-accent)' }} />
-          Live data flow
+          Live data flow with payload label
         </div>
         <div style={{ marginLeft: 'auto', color: 'var(--pa-ink-3)' }}>
-          Press <strong style={{ color: 'var(--pa-ink)' }}>Auto-play</strong> · keys ← → to step · {step}/{STEPS.length - 1}
+          {step}/{STEPS.length - 1}
         </div>
       </div>
     </div>
