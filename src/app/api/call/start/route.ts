@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       const elevenLabsPayload = {
         agent_id: agentId,
         agent_phone_number_id: agentPhoneNumberId,
-        customer_phone_number: customerPhone,
+        to_number: customerPhone,
         conversation_initiation_client_data: {
           dynamic_variables: dynamicVariables,
         },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const res = await fetch(
-          'https://api.elevenlabs.io/v1/convai/conversations/create-phone-call',
+          'https://api.elevenlabs.io/v1/convai/twilio/outbound-call',
           {
             method: 'POST',
             headers: {
