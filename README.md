@@ -175,6 +175,47 @@ Antigravity built the foundation; Claude wired everything live. The branch conve
 | Voice Execution | ✅ Live ElevenLabs Conversational AI (browser SDK on stage; Twilio outbound for production) | — |
 | Tracking | ✅ n8n workflow JSON + setup guide ready to import | n8n instance deployment is per-user |
 
+---
+
+## Hackathon submission Q&A
+
+### Does your project use managed agents? Explain how.
+
+**Yes — Google Vertex AI is our managed-agent runtime.** The `@google/genai` SDK is initialized with `vertexai: true`, our project ID, and the `us-central1` region (see [`src/lib/gemini.ts`](src/lib/gemini.ts)). Every Gemini 3.5 Flash call routes through `aiplatform.googleapis.com`, authenticated via Application Default Credentials — no static service-account keys. Every call is verifiable in **Cloud Audit Logs** under our GCP project `io-hack26mtv-7576`.
+
+The agent topology is six sub-agents under a planner orchestrator:
+
+1. **Intake** — Gemini Vision OCR · extracts `DenialLetter` JSON from a photo
+2. **Policy** — Gemini RAG over a real Aetna CPB corpus · extracts criteria + clauses
+3. **Clinical Evidence** — pulls the patient's record live from Cloud Healthcare API FHIR R4
+4. **Drafting** — structured-output appeal letter quoting policy verbatim
+5. **Voice Prep** — turns the letter into a `VoiceScript`
+6. **Confirmation extraction** — runs in the post-call webhook to lift the confirmation number out of the transcript
+
+The planner orchestrates **parallel fan-out** (Policy ∥ Clinical Evidence) and enforces **strict Zod schemas** at every lane boundary — no agent's output flows downstream unless it conforms to its contract. That's the managed-agents pattern from the I/O 2026 keynote.
+
+The initial scaffold was generated using **Google Antigravity 2.0**. You can see this in the commit history — `[antigravity] scaffold v1` is Antigravity's authored work, followed by `[antigravity/wire-live-v2] task 1+5 (in-flight)` which is the salvaged commit when Antigravity hit quota mid-build. Every subsequent commit prefixed `[claude/wire-live-v2]` was Claude continuing the build to completion. The branch name itself (`antigravity/wire-live-v2`) carries the attribution.
+
+### Any feedback for the organizers?
+
+Genuinely excellent day. Shack15 is unmatched, Wi-Fi was resilient, the kickoff was crisp.
+
+A few small notes:
+- A single page listing day-of API credentials (Vertex quota top-ups, AI Studio keys, sample project IDs) would save ~10 min per team.
+- The "Best Use of Managed Agents" prize category gave us a sharp north star — we'd vote for keeping that next year.
+- A short pre-day office-hours session on Vertex AI Agent Builder vs. Antigravity vs. raw SDK trade-offs would have been useful.
+
+### Any feedback on the Google products/models you used today?
+
+- **Gemini 3.5 Flash via Vertex AI** — astonishingly fast. We measured ~5× latency reduction vs. the AI Studio global endpoint. That delta was the unlock that made our 90-second end-to-end pipeline viable.
+- **Cloud Healthcare API (FHIR R4)** — setup via console was seamless. Identifier-based search worked exactly as documented. The HIPAA-eligibility framing made our "live patient pull" claim immediately defensible.
+- **Application Default Credentials** — elegant. Removed the need for static service-account keys and let us comply cleanly with our project's `iam.disableServiceAccountKeyCreation` org policy. More projects should default to this.
+- **Antigravity 2.0** — generated our entire Next.js scaffold + Zod schemas + UI shell in ~30 minutes. Genuinely incredible developer leverage. Hitting quota mid-build forced a pivot to raw SDK, which we handled — but **larger free quota during hackathon weekends would dramatically lift the ceiling on what teams can ship**.
+- **Vertex AI Vector Search** — we have the embedding pipeline working (768-dim `text-embedding-005` via ADC) but didn't deploy a full index in the 6-hour window. Local cheerio RAG fills in for now.
+- **One small ask:** the rename of "Vertex AI" → "Agent Platform" in the IAM role dropdown caused 10 minutes of confusion. A migration map (legacy name ↔ new name) would help.
+
+---
+
 ## License
 
 MIT.
