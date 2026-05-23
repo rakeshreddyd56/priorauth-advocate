@@ -18,7 +18,8 @@ export default function Home() {
 
   // Pipeline states
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentLane, setCurrentLane] = useState<'idle' | 'intake' | 'policy' | 'draft' | 'voice' | 'tracking'>('idle');
+  const [currentLane, setCurrentLane] = useState<'idle' | 'intake' | 'policy' | 'clinical-evidence' | 'draft' | 'voice' | 'tracking'>('idle');
+  const [clinicalEvidenceData, setClinicalEvidenceData] = useState<{ data: any; source: string } | null>(null);
   
   const [intakeData, setIntakeData] = useState<{ data: DenialLetter; source: string } | null>(null);
   const [policyData, setPolicyData] = useState<{ data: PolicyMatch; source: string } | null>(null);
@@ -84,6 +85,7 @@ export default function Home() {
     setCallSegments([]);
     setConfirmationNumber(null);
     setTrackingPlan(null);
+    setClinicalEvidenceData(null);
 
     try {
       // Step 1: Intake
@@ -104,25 +106,41 @@ export default function Home() {
       setIntakeData({ data: intakeVal, source: intakeSrc });
       await new Promise(r => setTimeout(r, 1200)); // Smooth pacing for hackathon demo visual effect
 
-      // Step 2: Policy
+      // Step 2 + 2b: Policy ∥ Clinical Evidence (parallel fan-out)
       setCurrentLane('policy');
-      const policyRes = await fetch('/api/run/policy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(intakeVal)
-      });
+      const [policyRes, ceRes] = await Promise.all([
+        fetch('/api/run/policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(intakeVal)
+        }),
+        fetch('/api/run/clinical-evidence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(intakeVal)
+        })
+      ]);
       if (!policyRes.ok) throw new Error('Policy lookup failed');
       const policyVal = await policyRes.json();
       const policySrc = policyRes.headers.get('X-Lane-Source') || 'demo cache';
       setPolicyData({ data: policyVal, source: policySrc });
+
+      // Clinical Evidence is best-effort — log but don't fail the run
+      let ceVal: any = null;
+      if (ceRes.ok) {
+        ceVal = await ceRes.json();
+        const ceSrc = ceRes.headers.get('X-Lane-Source') || 'scaffold';
+        setCurrentLane('clinical-evidence');
+        setClinicalEvidenceData({ data: ceVal, source: ceSrc });
+      }
       await new Promise(r => setTimeout(r, 1200));
 
-      // Step 3: Draft
+      // Step 3: Draft (now consumes optional clinical_evidence corroboration)
       setCurrentLane('draft');
       const draftRes = await fetch('/api/run/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ denial: intakeVal, policy: policyVal })
+        body: JSON.stringify({ denial: intakeVal, policy: policyVal, clinical_evidence: ceVal })
       });
       if (!draftRes.ok) throw new Error('Appeal letter drafting failed');
       const draftVal = await draftRes.json();
@@ -180,14 +198,14 @@ export default function Home() {
         })
       });
       const webhookResult = await webhookRes.json();
-      const segments = webhookResult.callResult.transcript_segments;
+      const segments = (webhookResult?.callResult?.transcript_segments ?? []).filter(Boolean);
 
       setCallSegments([]);
       let segmentIndex = 0;
       setCallState('connected');
 
       const interval = setInterval(() => {
-        if (segmentIndex < segments.length) {
+        if (segmentIndex < segments.length && segments[segmentIndex]) {
           setCallSegments(prev => [...prev, segments[segmentIndex]]);
           segmentIndex++;
           setActiveSegmentIndex(segmentIndex);
@@ -393,17 +411,41 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Lane 3: Drafting */}
+              {/* Lane 3: Clinical Evidence (NEW — parallel with Policy) */}
               <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                draftData ? 'bg-indigo-950/20 border-indigo-500/30' : 
-                currentLane === 'draft' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' : 
+                clinicalEvidenceData ? 'bg-emerald-950/20 border-emerald-500/30' :
+                currentLane === 'clinical-evidence' || currentLane === 'policy' ? 'bg-slate-900 border-emerald-500/50 animate-pulse' :
+                'bg-slate-950/40 border-slate-900'
+              }`}>
+                <div className="flex gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    clinicalEvidenceData ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    3
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-200">Clinical Evidence</h3>
+                    <p className="text-[10px] text-slate-400">Cloud Healthcare API · FHIR R4</p>
+                  </div>
+                </div>
+                {clinicalEvidenceData && (
+                  <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-emerald-950/40 border border-emerald-700/30 text-emerald-300">
+                    {clinicalEvidenceData.data?.mode === 'live' ? '● LIVE FHIR' : clinicalEvidenceData.source}
+                  </span>
+                )}
+              </div>
+
+              {/* Lane 4: Drafting */}
+              <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
+                draftData ? 'bg-indigo-950/20 border-indigo-500/30' :
+                currentLane === 'draft' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
                 'bg-slate-950/40 border-slate-900'
               }`}>
                 <div className="flex gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                     draftData ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    3
+                    4
                   </div>
                   <div>
                     <h3 className="text-xs font-semibold text-slate-200">Administrative appeal copy</h3>
@@ -417,21 +459,21 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Lane 4: Voice */}
+              {/* Lane 5: Voice */}
               <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                callState === 'completed' ? 'bg-indigo-950/20 border-indigo-500/30' : 
-                callState === 'calling' || callState === 'connected' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' : 
+                callState === 'completed' ? 'bg-indigo-950/20 border-indigo-500/30' :
+                callState === 'calling' || callState === 'connected' ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
                 'bg-slate-950/40 border-slate-900'
               }`}>
                 <div className="flex gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                     callState === 'completed' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    4
+                    5
                   </div>
                   <div>
                     <h3 className="text-xs font-semibold text-slate-200">Voice Filing Call</h3>
-                    <p className="text-[10px] text-slate-400">ElevenLabs speech engine</p>
+                    <p className="text-[10px] text-slate-400">ElevenLabs · Twilio</p>
                   </div>
                 </div>
                 {callState !== 'idle' && (
@@ -443,17 +485,17 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Lane 5: Tracking */}
+              {/* Lane 6: Tracking */}
               <div className={`flex items-start justify-between p-3 rounded-lg border transition-all ${
-                trackingPlan ? 'bg-indigo-950/20 border-indigo-500/30' : 
-                isTrackingLoading ? 'bg-slate-900 border-indigo-500/50 animate-pulse' : 
+                trackingPlan ? 'bg-indigo-950/20 border-indigo-500/30' :
+                isTrackingLoading ? 'bg-slate-900 border-indigo-500/50 animate-pulse' :
                 'bg-slate-950/40 border-slate-900'
               }`}>
                 <div className="flex gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                     trackingPlan ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    5
+                    6
                   </div>
                   <div>
                     <h3 className="text-xs font-semibold text-slate-200">Durable Tracking</h3>
@@ -756,19 +798,19 @@ export default function Home() {
 
                   {/* Scrolling transcript terminal */}
                   <div className="bg-slate-950 rounded-lg border border-slate-900 p-4 h-60 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-3">
-                    {callSegments.map((seg, i) => (
+                    {callSegments.filter(Boolean).map((seg, i) => (
                       <div key={i} className={`flex gap-3 items-start pb-2 border-b border-slate-900 last:border-0 ${
-                        seg.speaker === 'agent' ? 'text-indigo-400' :
-                        seg.speaker === 'rep' ? 'text-teal-400' :
-                        seg.speaker === 'system' ? 'text-slate-500' :
+                        seg?.speaker === 'agent' ? 'text-indigo-400' :
+                        seg?.speaker === 'rep' ? 'text-teal-400' :
+                        seg?.speaker === 'system' ? 'text-slate-500' :
                         'text-pink-400'
                       }`}>
                         <span className="text-[10px] text-slate-600 font-medium shrink-0 pt-0.5">
-                          {seg.t}s
+                          {seg?.t ?? 0}s
                         </span>
                         <div>
-                          <strong className="uppercase tracking-wider mr-2 text-[10px]">{seg.speaker}:</strong>
-                          <span>{seg.text}</span>
+                          <strong className="uppercase tracking-wider mr-2 text-[10px]">{seg?.speaker ?? 'unknown'}:</strong>
+                          <span>{seg?.text ?? ''}</span>
                         </div>
                       </div>
                     ))}
