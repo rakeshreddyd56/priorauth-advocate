@@ -1,0 +1,52 @@
+{
+  "resourceType": "Patient",
+  "id": "rr-demo-5821",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/Patient"
+    ],
+    "tag": [
+      {
+        "system": "urn:priorauth:demo",
+        "code": "synthetic",
+        "display": "Synthetic demo patient — not real PHI"
+      }
+    ]
+  },
+  "identifier": [
+    {
+      "use": "usual",
+      "system": "urn:priorauth:demo",
+      "value": "5821"
+    },
+    {
+      "use": "secondary",
+      "type": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+            "code": "MR",
+            "display": "Medical record number"
+          }
+        ]
+      },
+      "system": "urn:priorauth:demo:mrn",
+      "value": "RR-MRN-5821"
+    }
+  ],
+  "active": true,
+  "name": [
+    {
+      "use": "official",
+      "family": "R.",
+      "given": ["R."]
+    }
+  ],
+  "gender": "unknown",
+  "birthDate": "1994-01-01",
+  "generalPractitioner": [
+    {
+      "display": "Dr. M. Patel, Gastroenterology"
+    }
+  ]
+}

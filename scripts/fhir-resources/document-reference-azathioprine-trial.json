@@ -1,0 +1,83 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "rr-azathioprine-trial-doc",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/DocumentReference"
+    ],
+    "tag": [
+      {
+        "system": "urn:priorauth:demo",
+        "code": "synthetic",
+        "display": "Synthetic demo document — not real PHI"
+      }
+    ]
+  },
+  "status": "current",
+  "docStatus": "final",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "11506-3",
+        "display": "Progress note"
+      }
+    ],
+    "text": "Progress note — azathioprine trial summary"
+  },
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://hl7.org/fhir/us/core/CodeSystem/us-core-documentreference-category",
+          "code": "clinical-note",
+          "display": "Clinical note"
+        }
+      ]
+    }
+  ],
+  "subject": {
+    "reference": "Patient/rr-demo-5821",
+    "display": "R. R."
+  },
+  "date": "2026-07-30T16:00:00Z",
+  "author": [
+    {
+      "display": "Dr. M. Patel, Gastroenterology"
+    }
+  ],
+  "description": "8-week azathioprine trial summary — terminated due to intolerance; documented for prior-auth appeal of Humira request",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "language": "en-US",
+        "data": "UGF0aWVudCBSLiBSLiAobWVtYmVyIElEIGVuZGluZyA1ODIxKSBjb21wbGV0ZWQgYW4gOC13ZWVrIHRyaWFsIG9mIGF6YXRoaW9wcmluZSAxMDBtZyBkYWlseSwgTWF5IDIwMjYgdGhyb3VnaCBKdWx5IDIwMjYuIFRyaWFsIHdhcyB0ZXJtaW5hdGVkIGJ5IHByZXNjcmliaW5nIHBoeXNpY2lhbiBEci4gTS4gUGF0ZWwsIEdhc3Ryb2VudGVyb2xvZ3ksIGR1ZSB0byBkb2N1bWVudGVkIGludG9sZXJhbmNlIChlbGV2YXRlZCBMRlRzLCB3ZWlnaHQgbG9zcywgcGVyc2lzdGVudCBuYXVzZWEpLiBEaXNlYXNlIGFjdGl2aXR5IHJlbWFpbmVkIG1vZGVyYXRlLXRvLXNldmVyZSBhdCBlbmQgb2YgdHJpYWwgcGVyIENEQUkgc2NvcmUgMzEyLiBObyBmdXJ0aGVyIGNvbnZlbnRpb25hbCB0aGVyYXB5IG9wdGlvbnMgcmVtYWluIGFwcHJvcHJpYXRlIHBlciBBR0EgQ3JvaG4ncyBiaW9sb2dpYyBwb3NpdGlvbmluZyBndWlkZWxpbmUuCg==",
+        "title": "azathioprine-trial-summary.txt",
+        "creation": "2026-07-30T16:00:00Z"
+      }
+    }
+  ],
+  "context": {
+    "encounter": [
+      {
+        "display": "Outpatient gastroenterology follow-up, 2026-07-30"
+      }
+    ],
+    "period": {
+      "start": "2026-05-15",
+      "end": "2026-07-30"
+    },
+    "facilityType": {
+      "text": "Outpatient gastroenterology clinic"
+    },
+    "practiceSetting": {
+      "text": "Gastroenterology"
+    },
+    "related": [
+      {
+        "display": "Tagged for prior-auth appeal: Aetna CPB 0341 — Adalimumab for Crohn's Disease, conventional therapy criterion"
+      }
+    ]
+  }
+}

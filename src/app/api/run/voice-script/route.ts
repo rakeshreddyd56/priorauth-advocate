@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { VoiceScriptSchema } from '@/lib/schemas';
 import { MOCK_VOICE_SCRIPT } from '@/lib/fallback-data';
 import { GoogleGenAI } from '@google/genai';
+import { VOICE_PREP_SYSTEM_INSTRUCTION } from '@/lib/prompts/voice-prep';
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,8 +59,9 @@ Format the response according to the schema.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
-      contents: [{ text: prompt }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
+        systemInstruction: VOICE_PREP_SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'OBJECT',

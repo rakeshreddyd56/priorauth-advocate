@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AppealLetterSchema } from '@/lib/schemas';
 import { MOCK_APPEAL_LETTER } from '@/lib/fallback-data';
 import { GoogleGenAI } from '@google/genai';
+import { DRAFTING_SYSTEM_INSTRUCTION } from '@/lib/prompts/drafting';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'denial and policy are required' }, { status: 400 });
     }
 
-    const { denial, policy } = body;
+    const { denial, policy, clinical_evidence } = body;
     const apiKey = process.env.GEMINI_API_KEY;
     const isDemoMode = process.env.DEMO === '1' || !apiKey;
 
@@ -25,31 +26,25 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const prompt = `You are PriorAuth Advocate. Draft a formal administrative appeal letter.
-Inputs:
-- Denial Letter: ${JSON.stringify(denial, null, 2)}
-- Matched Policy: ${JSON.stringify(policy, null, 2)}
+    const userPrompt = `Draft an administrative appeal letter for the following.
 
-Requirements for the Appeal Letter:
-1. to_address: Address the appeal to the insurer's prior authorization appeals division. Use details from the denial letter.
-2. subject: Clear subject line with patient initials (e.g. S. Jenkins), member ID, and drug/service.
-3. body_markdown: Formatted markdown letter appealing the denial. Ensure it quotes policy sections and states how the exception criteria are satisfied (e.g., patient has a documented statin intolerance/contraindication, or metformin intolerance, etc.). Keep the patient's name redacted to initials (e.g., S. Jenkins) inside the letter text.
-4. citations: List specific citations mapping arguments to either policy pages or medical documentation.
-5. short_summary_for_voice: A concise 30-40 second read summarizing the appeal grounds. This will be used by our phone filing agent.
-6. win_probability: A float between 0.0 and 1.0 indicating the strength of the appeal based on the matches.
+DENIAL LETTER:
+${JSON.stringify(denial, null, 2)}
 
-CRITICAL SAFETY BOUNDARIES:
-- This is administrative advocacy, not medical advice.
-- Never recommend a treatment, diagnosis, dose, medication change, or clinical decision.
-- The physician already prescribed the care. The system only reads insurer paperwork, quotes policy language, drafts administrative appeal copy, files the appeal, and tracks deadlines.
-- Never say "AI doctor", "diagnose", "treatment recommendation", or "replace your physician" in the generated text.
+MATCHED POLICY:
+${JSON.stringify(policy, null, 2)}
+${clinical_evidence ? `
 
-Format the response according to the schema.`;
+CLINICAL EVIDENCE (corroborated via Cloud Healthcare API FHIR R4):
+${JSON.stringify(clinical_evidence, null, 2)}` : ''}
+
+Use the patient's initials from denial.patient_name_redacted (e.g. "R. R.") in the letter subject and body. Cite at least one clinical_criteria item verbatim from the matched policy. If clinical evidence is present, reference the corroborated fact ("documented in the patient's medical record via the prescribing physician's EHR — Cloud Healthcare API FHIR R4").`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
-      contents: [{ text: prompt }],
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       config: {
+        systemInstruction: DRAFTING_SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'OBJECT',
