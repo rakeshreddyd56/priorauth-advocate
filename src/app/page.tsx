@@ -8,6 +8,7 @@ import {
   Database, Server, Check, ArrowRight, Mail, Copy
 } from 'lucide-react';
 import { SAMPLE_DENIAL_LETTER_TEXT } from '@/lib/fallback-data';
+import ArchitectureFlow from '@/components/ArchitectureFlow';
 import { DenialLetter, PolicyMatch, AppealLetter, VoiceScript, CallResult, TrackingPlan } from '@/lib/schemas';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
@@ -456,9 +457,7 @@ function Home() {
             <div className="pa-label" style={{ marginBottom: '0.5rem' }}>03 · System architecture</div>
             <h1 className="pa-serif" style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Gemini thinks. ElevenLabs speaks. n8n remembers.</h1>
           </div>
-          <div style={{ maxWidth: '1440px', width: '100%', background: 'white', border: '1px solid var(--pa-rule-soft)', padding: '0.5rem' }}>
-            <img src="/architecture.svg" alt="PriorAuth Advocate Architecture" style={{ width: '100%', display: 'block' }} />
-          </div>
+          <ArchitectureFlow />
           <div style={{ maxWidth: '1100px', width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
             <div className="pa-card-tight">
               <div className="pa-label" style={{ marginBottom: '0.4rem' }}>The brain</div>
